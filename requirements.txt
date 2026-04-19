@@ -1,0 +1,16 @@
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+python-multipart>=0.0.9,<1.0.0
+PyMuPDF>=1.24.0,<2.0.0
+opencv-python>=4.10.0,<5.0.0
+Pillow>=10.4.0,<11.0.0
+numpy>=2.0.0,<3.0.0
+surya-ocr>=0.17.0,<1.0.0
+transformers>=4.56.0,<5.0.0
+torch>=2.0.0,<3.0.0
+requests>=2.31.0,<3.0.0
+paddleocr>=3.0.0,<4.0.0
+pix2tex>=0.1.4,<1.0.0
+rapidfuzz>=3.9.0,<4.0.0
+symspellpy>=6.7.8,<7.0.0
+pymorphy3>=2.0.2,<3.0.0

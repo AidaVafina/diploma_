@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Intake Prototype</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+    />
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+    ></script>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <main class="layout">
+      <section class="hero">
+        <div class="hero__text">
+          <span class="eyebrow">Предобработка сканов научных журналов</span>
+          <h1>Автоматический конвейер PDF, layout и OCR блоков</h1>
+          <p>
+            Загрузите один PDF-документ
+          </p>
+        </div>
+      </section>
+
+      <section class="panel">
+        <form id="upload-form" class="upload-form">
+          <label class="file-picker" for="pdf-file">
+            <span class="file-picker__label">PDF-документ</span>
+            <input id="pdf-file" name="file" type="file" accept=".pdf,application/pdf" required />
+          </label>
+
+          <button id="process-button" type="submit">Обработать</button>
+        </form>
+
+        <p id="status" class="status">Файл ещё не загружен.</p>
+      </section>
+
+      <section class="results-panel">
+        <div class="results-panel__header">
+          <div>
+            <span class="eyebrow">Результаты</span>
+            <h2>Разбор страниц</h2>
+          </div>
+          <div id="summary" class="summary">Страницы пока не обработаны</div>
+        </div>
+
+        <div id="results" class="results-grid">
+          <article class="empty-state">
+            <h3>Здесь появятся страницы документа</h3>
+            <p>
+              После обработки вы увидите PDF-результат, исходный рендер
+              страницы, OCR-превью, layout-разметку Surya и общий ordered
+              список текстовых и формульных блоков, читаемый текст,
+              предварительный TeX для каждой страницы и автоматическое
+              разбиение журнала на статьи.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
