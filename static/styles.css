@@ -324,11 +324,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.article-item--review {
-  border-color: rgba(168, 76, 42, 0.18);
-  background: rgba(255, 248, 245, 0.96);
-}
-
 .article-item__summary {
   display: flex;
   justify-content: space-between;
@@ -378,13 +373,8 @@ button:disabled {
 .article-item__title {
   display: block;
   color: var(--text);
+  font-weight: 700;
   line-height: 1.4;
-}
-
-.article-item__subtitle {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.5;
 }
 
 .article-item__summary-aside {
@@ -405,35 +395,31 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
-.article-item__debug {
+.article-item__text {
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(245, 249, 250, 0.85);
   border: 1px solid rgba(53, 72, 81, 0.08);
 }
 
-.article-item__debug h5 {
+.article-item__text h5 {
   margin: 0 0 8px;
   font-size: 0.92rem;
   font-family: "Trebuchet MS", "Gill Sans", sans-serif;
 }
 
-.article-item__debug-grid {
-  margin: 0;
+.article-item__text-content {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) 1fr;
-  gap: 8px 12px;
-  color: var(--muted);
+  gap: 10px;
+  max-height: 360px;
+  overflow: auto;
 }
 
-.article-item__debug-grid dt,
-.article-item__debug-grid dd {
+.article-item__text-content p {
   margin: 0;
-}
-
-.article-item__debug-grid dt {
-  font-weight: 700;
   color: var(--text);
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
 .page-card {
@@ -719,6 +705,11 @@ button:disabled {
 .page-readable-view__paragraph--title {
   font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
   font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.page-readable-view__paragraph--article-title,
+.page-readable-view__paragraph--author {
   font-weight: 700;
 }
 

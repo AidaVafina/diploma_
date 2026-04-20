@@ -105,20 +105,39 @@ function summarizeArticlePreview(text, fallback) {
   return value || fallback;
 }
 
-function formatDebugValue(value) {
-  if (value === null || value === undefined) {
-    return "—";
+function getPageReadableText(page) {
+  const pageContent = page.text_block_content || {};
+  const presentation = pageContent.presentation || {};
+  return (
+    presentation.readable_text ||
+    pageContent.page_text ||
+    page.text ||
+    ""
+  ).trim();
+}
+
+function getArticlePages(article, pages) {
+  const pageNumbers = new Set(article.page_numbers || []);
+  if (!pageNumbers.size && article.start_page && article.end_page) {
+    for (let pageNumber = article.start_page; pageNumber <= article.end_page; pageNumber += 1) {
+      pageNumbers.add(pageNumber);
+    }
   }
-  if (typeof value === "number") {
-    return Number.isInteger(value) ? String(value) : value.toFixed(3);
+  return pages.filter((page) => pageNumbers.has(page.page_number));
+}
+
+function collectArticleText(article, pages) {
+  const preparedArticleText = (article.article_text || "").trim();
+  if (preparedArticleText) {
+    return preparedArticleText;
   }
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-  if (Array.isArray(value)) {
-    return value.join(", ");
-  }
-  return String(value);
+
+  const articlePages = getArticlePages(article, pages);
+  const parts = articlePages
+    .map((page) => getPageReadableText(page))
+    .filter(Boolean);
+
+  return parts.join("\n\n").trim();
 }
 
 function summarizeProcessedContent(block, limit = 110) {
@@ -391,6 +410,42 @@ function sanitizeReadableText(text) {
     .trim();
 }
 
+function normalizeReadableTextForCompare(text) {
+  return sanitizeReadableText(text).replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isReadableTextBlock(block) {
+  return ["text", "title", "header", "footer", "page_number"].includes(block.type);
+}
+
+function isArticleTitleParagraph(block, cleanedText, pageContent) {
+  if (block.type === "title") {
+    return true;
+  }
+
+  const articleTitle = normalizeReadableTextForCompare(pageContent.article_title);
+  const paragraphText = normalizeReadableTextForCompare(cleanedText);
+  if (!articleTitle || !paragraphText) {
+    return false;
+  }
+
+  return articleTitle === paragraphText;
+}
+
+function looksLikeAuthorLine(text) {
+  const cleanedText = sanitizeReadableText(text).replace(/\s+/g, " ").trim();
+  if (!cleanedText || cleanedText.length > 160) {
+    return false;
+  }
+
+  const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 16 || /[=\\]/.test(cleanedText)) {
+    return false;
+  }
+
+  return /(?:^|[\s,(])(?:[A-ZА-ЯЁ]\.\s*){1,3}/.test(cleanedText);
+}
+
 function validateLatexForReadableView(latex) {
   if (!latex) {
     return false;
@@ -425,16 +480,8 @@ function renderReadableMath(container) {
   });
 }
 
-function renderReadableView(pageContent) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "page-readable-view";
-
-  const title = document.createElement("h4");
-  title.textContent = "Текст страницы для чтения";
-  wrapper.appendChild(title);
-
-  const content = document.createElement("div");
-  content.className = "page-readable-view__content";
+function appendReadableBlocks(content, pageContent) {
+  let expectAuthorAfterTitle = false;
 
   (pageContent.blocks || []).forEach((block) => {
     if (block.type === "formula") {
@@ -460,16 +507,30 @@ function renderReadableView(pageContent) {
       return;
     }
 
-    if (["text", "title", "header", "footer", "page_number"].includes(block.type)) {
+    if (isReadableTextBlock(block)) {
       const cleanedText = sanitizeReadableText(block.content);
       if (!cleanedText) {
         return;
       }
 
       const paragraph = document.createElement("p");
-      paragraph.className =
-        block.type === "title" ? "page-readable-view__paragraph page-readable-view__paragraph--title" :
-        "page-readable-view__paragraph";
+      paragraph.className = "page-readable-view__paragraph";
+
+      const isArticleTitle = isArticleTitleParagraph(block, cleanedText, pageContent);
+      const isAuthor = expectAuthorAfterTitle && looksLikeAuthorLine(cleanedText);
+      if (isArticleTitle) {
+        paragraph.classList.add(
+          "page-readable-view__paragraph--title",
+          "page-readable-view__paragraph--article-title"
+        );
+        expectAuthorAfterTitle = true;
+      } else if (isAuthor) {
+        paragraph.classList.add("page-readable-view__paragraph--author");
+        expectAuthorAfterTitle = false;
+      } else if (!["header", "footer", "page_number"].includes(block.type)) {
+        expectAuthorAfterTitle = false;
+      }
+
       paragraph.textContent = cleanedText;
       content.appendChild(paragraph);
       return;
@@ -482,10 +543,63 @@ function renderReadableView(pageContent) {
       content.appendChild(placeholder);
     }
   });
+}
+
+function renderReadableView(pageContent) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "page-readable-view";
+
+  const title = document.createElement("h4");
+  title.textContent = "Текст страницы для чтения";
+  wrapper.appendChild(title);
+
+  const content = document.createElement("div");
+  content.className = "page-readable-view__content";
+  appendReadableBlocks(content, pageContent);
 
   wrapper.appendChild(content);
   requestAnimationFrame(() => renderReadableMath(content));
   return wrapper;
+}
+
+function createArticleReadableText(article, pages) {
+  const content = document.createElement("div");
+  content.className = "article-item__text-content";
+
+  const articlePages = getArticlePages(article, pages);
+  let hasPageContent = false;
+
+  if (articlePages.length) {
+    articlePages.forEach((page) => {
+      if (page.text_block_content?.blocks?.length) {
+        const pageContent = {
+          ...page.text_block_content,
+          article_title: page.text_block_content.article_title || article.title_preview,
+        };
+        appendReadableBlocks(content, pageContent);
+        hasPageContent = true;
+        return;
+      }
+
+      const pageText = getPageReadableText(page);
+      if (pageText) {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = pageText;
+        content.appendChild(paragraph);
+        hasPageContent = true;
+      }
+    });
+
+    if (hasPageContent) {
+      requestAnimationFrame(() => renderReadableMath(content));
+      return content;
+    }
+  }
+
+  const fallbackText = document.createElement("p");
+  fallbackText.textContent = collectArticleText(article, pages) || "Текст статьи недоступен.";
+  content.appendChild(fallbackText);
+  return content;
 }
 
 function createStructureViewPanel(pageContent) {
@@ -628,7 +742,7 @@ function createTextBlockProcessorSection(page) {
   return section;
 }
 
-function createArticleSegmentationSection(segmentation) {
+function createArticleSegmentationSection(segmentation, pages) {
   const section = document.createElement("section");
   section.className = "article-segmentation";
 
@@ -643,19 +757,13 @@ function createArticleSegmentationSection(segmentation) {
   const description = document.createElement("p");
   description.className = "article-segmentation__description";
   description.textContent =
-    "Сегментация выполнена поверх готовых PageContent: показаны предполагаемые границы статей и краткие превью.";
+    "Граница статьи определяется по отступу первого text-блока сверху; пунктуация в конце предыдущей страницы повышает уверенность.";
   titleWrap.appendChild(description);
 
   const summary = document.createElement("div");
   summary.className = "article-segmentation__summary";
   summary.appendChild(createSmallBadge(`${segmentation.article_count || 0} статей`, "success"));
   summary.appendChild(createSmallBadge(`${segmentation.total_pages || 0} страниц`));
-  summary.appendChild(
-    createSmallBadge(
-      `${segmentation.needs_review_count || 0} требуют проверки`,
-      segmentation.needs_review_count ? "warning" : ""
-    )
-  );
 
   header.appendChild(titleWrap);
   header.appendChild(summary);
@@ -664,20 +772,9 @@ function createArticleSegmentationSection(segmentation) {
   const list = document.createElement("div");
   list.className = "article-list";
 
-  if (!segmentation.articles?.length) {
-    const empty = document.createElement("p");
-    empty.className = "article-segmentation__description";
-    empty.textContent = "Сегментатор не нашёл уверенных границ статей.";
-    section.appendChild(empty);
-    return section;
-  }
-
-  segmentation.articles.forEach((article) => {
+  (segmentation.articles || []).forEach((article) => {
     const details = document.createElement("details");
     details.className = "article-item";
-    if (article.needs_review) {
-      details.classList.add("article-item--review");
-    }
 
     const summaryNode = document.createElement("summary");
     summaryNode.className = "article-item__summary";
@@ -695,21 +792,13 @@ function createArticleSegmentationSection(segmentation) {
     const headlineTop = document.createElement("div");
     headlineTop.className = "article-item__headline-top";
     headlineTop.appendChild(createSmallBadge(`${article.start_page}-${article.end_page}`));
-    if (article.needs_review) {
-      headlineTop.appendChild(createSmallBadge("warning", "warning"));
-    }
 
     const titleNode = document.createElement("strong");
     titleNode.className = "article-item__title";
-    titleNode.textContent = summarizeArticlePreview(article.title_preview, "Без уверенного заголовка");
-
-    const subtitle = document.createElement("p");
-    subtitle.className = "article-item__subtitle";
-    subtitle.textContent = summarizeArticlePreview(article.author_preview, "Автор не определён");
+    titleNode.textContent = summarizeArticlePreview(article.title_preview, "Без уверенного начала");
 
     headline.appendChild(headlineTop);
     headline.appendChild(titleNode);
-    headline.appendChild(subtitle);
 
     main.appendChild(idBadge);
     main.appendChild(headline);
@@ -717,7 +806,7 @@ function createArticleSegmentationSection(segmentation) {
     const aside = document.createElement("div");
     aside.className = "article-item__summary-aside";
     aside.appendChild(
-      createSmallBadge(`conf ${Number(article.boundary_confidence || 0).toFixed(2)}`)
+      createSmallBadge(`score ${Number(article.boundary_confidence || 0).toFixed(2)}`)
     );
 
     summaryNode.appendChild(main);
@@ -733,33 +822,19 @@ function createArticleSegmentationSection(segmentation) {
     meta.appendChild(createBlockDetailRow("Pages", (article.page_numbers || []).join(", ") || "—"));
     meta.appendChild(createBlockDetailRow("Start", String(article.start_page)));
     meta.appendChild(createBlockDetailRow("End", String(article.end_page)));
-    meta.appendChild(
-      createBlockDetailRow(
-        "Confidence",
-        Number(article.boundary_confidence || 0).toFixed(3)
-      )
-    );
     body.appendChild(meta);
 
-    if (article.debug_info && Object.keys(article.debug_info).length) {
-      const debug = document.createElement("div");
-      debug.className = "article-item__debug";
-      const debugTitle = document.createElement("h5");
-      debugTitle.textContent = "Debug info";
-      const debugList = document.createElement("dl");
-      debugList.className = "article-item__debug-grid";
-      Object.entries(article.debug_info).forEach(([key, value]) => {
-        const label = document.createElement("dt");
-        label.textContent = key;
-        const valueNode = document.createElement("dd");
-        valueNode.textContent = formatDebugValue(value);
-        debugList.appendChild(label);
-        debugList.appendChild(valueNode);
-      });
-      debug.appendChild(debugTitle);
-      debug.appendChild(debugList);
-      body.appendChild(debug);
-    }
+    const textBlock = document.createElement("div");
+    textBlock.className = "article-item__text";
+
+    const textTitle = document.createElement("h5");
+    textTitle.textContent = "Текст статьи";
+
+    const textContent = createArticleReadableText(article, pages);
+
+    textBlock.appendChild(textTitle);
+    textBlock.appendChild(textContent);
+    body.appendChild(textBlock);
 
     details.appendChild(body);
     list.appendChild(details);
@@ -889,7 +964,7 @@ function renderResults(documentResult) {
     (page) => page.text_block_error || page.formula_block_error
   ).length;
   const articleSummary = articleSegmentation
-    ? ` | Статей: ${articleSegmentation.article_count} | Границ на проверку: ${articleSegmentation.needs_review_count}`
+    ? ` | Статей: ${articleSegmentation.article_count}`
     : "";
   summaryNode.textContent =
     `Всего: ${pages.length} | С текстом: ${pagesWithText} | Для OCR: ${pagesForOcr} | ` +
@@ -898,7 +973,7 @@ function renderResults(documentResult) {
     articleSummary;
 
   if (articleSegmentation) {
-    resultsNode.appendChild(createArticleSegmentationSection(articleSegmentation));
+    resultsNode.appendChild(createArticleSegmentationSection(articleSegmentation, pages));
   }
 
   pages.forEach((page) => {
@@ -936,7 +1011,7 @@ async function handleSubmit(event) {
     }
 
     renderResults(payload);
-    setStatus("PDF-этап завершён. PageContent сформирован для каждой страницы, журнал разбит на статьи.");
+    setStatus("PDF-этап завершён. PageContent сформирован для каждой страницы, выполнено разделение на статьи.");
   } catch (error) {
     console.error(error);
     setStatus(error.message || "Произошла ошибка при обработке файла.", true);

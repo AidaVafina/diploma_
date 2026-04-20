@@ -163,6 +163,7 @@ class ArticlePreview(BaseModel):
     page_numbers: list[int] = Field(default_factory=list)
     title_preview: str = ""
     author_preview: str = ""
+    article_text: str = ""
     needs_review: bool = False
     boundary_confidence: float = Field(..., ge=0.0, le=1.0)
     debug_info: dict[str, Any] = Field(default_factory=dict)
