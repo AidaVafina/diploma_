@@ -6,6 +6,7 @@ import json
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse
 from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 
 from app.core.config import settings
 from app.schemas import (
@@ -46,6 +47,7 @@ from app.services.layout_analysis_surya import (
 from app.services.pdf_processor import (
     InvalidPDFError,
     PDFProcessingError,
+    iter_pdf_processing_events,
     process_pdf_document,
 )
 from app.services.text_postprocessor import postprocess_text
@@ -167,6 +169,68 @@ async def process_pdf(file: UploadFile = File(...)) -> DocumentProcessingResult:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),
         ) from exc
+
+
+@router.post("/api/process-pdf-stream", status_code=status.HTTP_200_OK)
+async def process_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
+    logger.info(
+        "Received streaming file upload: name=%s, content_type=%s",
+        file.filename,
+        file.content_type,
+    )
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Не удалось определить имя файла.",
+        )
+
+    if (
+        not file.filename.lower().endswith(".pdf")
+        and file.content_type != "application/pdf"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Загрузите PDF-файл.",
+        )
+
+    pdf_bytes = await read_uploaded_pdf(file)
+
+    def event_stream():
+        yield json.dumps(
+            {
+                "type": "progress",
+                "message": "PDF загружен, запускаем обработку",
+            },
+            ensure_ascii=False,
+        ) + "\n"
+
+        try:
+            for event in iter_pdf_processing_events(pdf_bytes):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+        except InvalidPDFError as exc:
+            yield json.dumps(
+                {
+                    "type": "error",
+                    "message": str(exc),
+                },
+                ensure_ascii=False,
+            ) + "\n"
+        except PDFProcessingError as exc:
+            logger.exception("Failed to process uploaded PDF stream")
+            yield json.dumps(
+                {
+                    "type": "error",
+                    "message": str(exc),
+                },
+                ensure_ascii=False,
+            ) + "\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.post(

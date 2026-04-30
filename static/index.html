@@ -13,8 +13,8 @@
       defer
       src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
     ></script>
-    <link rel="stylesheet" href="/static/styles.css?v=20260420-page-latex-hidden" />
-    <script src="/static/app.js?v=20260420-page-latex-hidden" defer></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260430-live-loader" />
+    <script src="/static/app.js?v=20260430-live-loader" defer></script>
   </head>
   <body>
     <main class="layout">
@@ -39,6 +39,14 @@
         </form>
 
         <p id="status" class="status">Файл ещё не загружен.</p>
+        <div id="processing-indicator" class="processing-indicator" hidden>
+          <div class="processing-indicator__track" aria-hidden="true">
+            <span></span>
+          </div>
+          <p id="processing-stage" class="processing-indicator__stage">
+            Ожидаем запуск обработки
+          </p>
+        </div>
       </section>
 
       <section class="results-panel">

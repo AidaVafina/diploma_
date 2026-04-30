@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator
+from typing import Any
 
 import fitz
 
@@ -38,6 +40,9 @@ class InvalidPDFError(PDFProcessingError):
     pass
 
 
+ProgressEvent = dict[str, Any]
+
+
 def normalize_text(text: str) -> str:
     return WHITESPACE_RE.sub("", text)
 
@@ -52,10 +57,14 @@ def render_page(page: fitz.Page, dpi: int | None = None) -> fitz.Pixmap:
     return page.get_pixmap(matrix=matrix, alpha=False)
 
 
-def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
+def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
     results: list[PageProcessingResult] = []
 
     try:
+        yield {
+            "type": "progress",
+            "message": "Открываем PDF-документ",
+        }
         # открытие документа
         document = fitz.open(stream=pdf_bytes, filetype="pdf")
     except fitz.FileDataError as exc:
@@ -69,10 +78,22 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
 
     with document:
         logger.info("Opened PDF document with %s pages", document.page_count)
+        total_pages = document.page_count
+        yield {
+            "type": "progress",
+            "message": f"Документ открыт: {total_pages} страниц",
+        }
 
         # проход по всем страницам PDF
         for page_number, page in enumerate(document, start=1):
             logger.info("Processing page %s", page_number)
+            page_label = f"страница {page_number}/{total_pages}"
+            yield {
+                "type": "progress",
+                "message": f"Извлекаем встроенный текст, {page_label}",
+                "page": page_number,
+                "total_pages": total_pages,
+            }
             extracted_text = (page.get_text("text") or "").strip()
             text_is_enough = has_enough_text(extracted_text)
             page_image_data_url: str | None = None
@@ -84,24 +105,60 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
             formula_block_error: str | None = None
 
             try:
+                yield {
+                    "type": "progress",
+                    "message": f"Рендерим страницу в изображение, {page_label}",
+                    "page": page_number,
+                    "total_pages": total_pages,
+                }
                 pixmap = render_page(page)
                 page_image_data_url = pixmap_to_data_url(pixmap)
                 page_image_rgb = pixmap_to_numpy_rgb(pixmap)
 
                 if not text_is_enough:
                     logger.info("Page %s marked for OCR preparation", page_number)
+                    yield {
+                        "type": "progress",
+                        "message": f"Готовим изображение для OCR, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
                     image_data_url = preprocess_page_image_to_data_url(pixmap)
                 try:
+                    yield {
+                        "type": "progress",
+                        "message": f"Выполняем layout-анализ и Surya OCR, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
                     layout_analysis = analyze_page_layout(page_image_rgb)
                 except SuryaNotAvailableError as exc:
                     logger.exception("Surya is unavailable for page %s", page_number)
                     layout_error = str(exc)
+                    yield {
+                        "type": "progress",
+                        "message": f"Layout-анализ недоступен, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
                 except LayoutAnalysisError as exc:
                     logger.exception("Layout analysis failed for page %s", page_number)
                     layout_error = str(exc)
+                    yield {
+                        "type": "progress",
+                        "message": f"Ошибка layout-анализа, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
 
                 if layout_analysis is not None:
                     try:
+                        yield {
+                            "type": "progress",
+                            "message": f"Распознаём текстовые блоки, {page_label}",
+                            "page": page_number,
+                            "total_pages": total_pages,
+                        }
                         routed_blocks = build_routed_blocks_from_layout(
                             layout_analysis.blocks,
                             block_id_prefix=f"page_{page_number}",
@@ -111,6 +168,12 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
                             routed_blocks,
                             page_number=page_number,
                         )
+                        yield {
+                            "type": "progress",
+                            "message": f"Распознаём формулы, {page_label}",
+                            "page": page_number,
+                            "total_pages": total_pages,
+                        }
                         text_block_content = process_formula_blocks(
                             page_image_rgb,
                             text_block_content.blocks,
@@ -126,6 +189,12 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
                             text_block_error = str(exc)
                         else:
                             formula_block_error = str(exc)
+                        yield {
+                            "type": "progress",
+                            "message": f"Ошибка OCR или формул, {page_label}",
+                            "page": page_number,
+                            "total_pages": total_pages,
+                        }
             except PDFProcessingError:
                 raise
             except ImageProcessingError as exc:
@@ -160,12 +229,37 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
     ]
     if processed_page_contents:
         try:
+            yield {
+                "type": "progress",
+                "message": "Разделяем документ на статьи",
+            }
             article_segmentation = segment_document_into_articles(processed_page_contents)
         except Exception:  # pragma: no cover - defensive branch
             logger.exception("Article segmentation failed after PDF processing")
+            yield {
+                "type": "progress",
+                "message": "Не удалось разделить документ на статьи",
+            }
 
     logger.info("Finished processing PDF document")
-    return DocumentProcessingResult(
+    result = DocumentProcessingResult(
         pages=results,
         article_segmentation=article_segmentation,
     )
+    yield {
+        "type": "result",
+        "message": "Обработка завершена",
+        "data": result.model_dump(mode="json"),
+    }
+
+
+def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
+    result: DocumentProcessingResult | None = None
+    for event in iter_pdf_processing_events(pdf_bytes):
+        if event.get("type") == "result":
+            result = DocumentProcessingResult.model_validate(event["data"])
+
+    if result is None:  # pragma: no cover - defensive branch
+        raise PDFProcessingError("Обработка PDF завершилась без результата.")
+
+    return result

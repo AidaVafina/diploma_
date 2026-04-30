@@ -2,12 +2,78 @@ const form = document.getElementById("upload-form");
 const fileInput = document.getElementById("pdf-file");
 const processButton = document.getElementById("process-button");
 const statusNode = document.getElementById("status");
+const processingIndicatorNode = document.getElementById("processing-indicator");
+const processingStageNode = document.getElementById("processing-stage");
 const summaryNode = document.getElementById("summary");
 const resultsNode = document.getElementById("results");
 
 function setStatus(message, isError = false) {
   statusNode.textContent = message;
   statusNode.style.color = isError ? "var(--warning)" : "var(--muted)";
+}
+
+function setProcessingStage(message, state = "active") {
+  if (!processingIndicatorNode || !processingStageNode) {
+    return;
+  }
+
+  processingIndicatorNode.hidden = false;
+  processingIndicatorNode.classList.toggle("processing-indicator--active", state === "active");
+  processingIndicatorNode.classList.toggle("processing-indicator--done", state === "done");
+  processingIndicatorNode.classList.toggle("processing-indicator--error", state === "error");
+  processingStageNode.textContent = message;
+}
+
+async function readProcessingStream(response) {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Браузер не поддерживает live-progress для этого запроса.");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let documentResult = null;
+
+  function handleLine(line) {
+    if (!line.trim()) {
+      return;
+    }
+
+    const event = JSON.parse(line);
+    if (event.type === "error") {
+      setProcessingStage(event.message || "Ошибка обработки", "error");
+      throw new Error(event.message || "Не удалось обработать PDF.");
+    }
+
+    if (event.message) {
+      setProcessingStage(event.message, event.type === "result" ? "done" : "active");
+    }
+
+    if (event.type === "result") {
+      documentResult = event.data;
+    }
+  }
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    lines.forEach(handleLine);
+
+    if (done) {
+      break;
+    }
+  }
+
+  handleLine(buffer);
+
+  if (!documentResult) {
+    throw new Error("Сервер завершил live-progress без результата обработки.");
+  }
+
+  return documentResult;
 }
 
 function summarizeText(text, limit = 300) {
@@ -1081,26 +1147,28 @@ async function handleSubmit(event) {
   formData.append("file", file);
 
   processButton.disabled = true;
-  setStatus(
-    "Загружаем PDF, обрабатываем страницы, запускаем layout-анализ и собираем финальный PageContent..."
-  );
-  summaryNode.textContent = "Комбинированная обработка запущена";
+  setProcessingStage("Отправляем PDF на сервер", "active");
+  setStatus("Идёт обработка PDF...");
+  summaryNode.textContent = "Live-progress запущен";
 
   try {
-    const response = await fetch("/api/process-pdf", {
+    const response = await fetch("/api/process-pdf-stream", {
       method: "POST",
       body: formData,
     });
 
-    const payload = await response.json();
     if (!response.ok) {
+      const payload = await response.json();
       throw new Error(payload.detail || "Не удалось обработать PDF.");
     }
 
+    const payload = await readProcessingStream(response);
     renderResults(payload);
+    setProcessingStage("Обработка завершена", "done");
     setStatus("PDF-этап завершён. PageContent сформирован для каждой страницы, выполнено разделение на статьи.");
   } catch (error) {
     console.error(error);
+    setProcessingStage(error.message || "Ошибка обработки", "error");
     setStatus(error.message || "Произошла ошибка при обработке файла.", true);
     summaryNode.textContent = "Ошибка обработки";
   } finally {
