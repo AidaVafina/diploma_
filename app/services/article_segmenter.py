@@ -5,12 +5,14 @@ import re
 from dataclasses import dataclass
 
 from app.schemas import (
+    ArticleContent,
     ArticleBoundary,
     ArticlePreview,
     ArticleSegmentationResult,
     PageContent,
     ProcessedBlock,
 )
+from app.services.article_latex_builder import build_article_latex_document
 
 logger = logging.getLogger(__name__)
 
@@ -248,8 +250,18 @@ class ArticleSegmenter:
             or start_features.title_preview
         )
 
+        article_id = f"article_{article_index:03d}"
+        article_latex = build_article_latex_document(
+            ArticleContent(
+                article_id=article_id,
+                page_numbers=page_numbers,
+                title=title_preview[:240],
+                pages=article_pages,
+            )
+        )
+
         return ArticlePreview(
-            article_id=f"article_{article_index:03d}",
+            article_id=article_id,
             start_page=page_numbers[0] if page_numbers else article_index,
             end_page=page_numbers[-1] if page_numbers else article_index,
             page_numbers=page_numbers,
@@ -257,6 +269,8 @@ class ArticleSegmenter:
             needs_review=start_boundary.needs_review,
             boundary_confidence=start_boundary.score,
             article_text=self._build_article_text(article_pages),
+            article_latex_preview=article_latex.latex_preview,
+            article_latex_document=article_latex.latex_document,
             debug_info=start_boundary.debug_info,
         )
 

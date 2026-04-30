@@ -9,10 +9,13 @@ from fastapi.responses import Response
 
 from app.core.config import settings
 from app.schemas import (
+    ArticleContent,
+    ArticleLatexDocumentResult,
     ArticleSegmentationRequest,
     ArticleSegmentationResult,
     Block,
     DocumentProcessingResult,
+    LatexBuildResult,
     LayoutAnalysisResponse,
     PageContent,
     PageTextResponse,
@@ -26,6 +29,12 @@ from app.services.formula_block_processor import (
     get_formula_crop_bytes,
     process_formula_blocks,
 )
+from app.services.article_latex_builder import (
+    ArticleLatexNotFoundError,
+    build_article_latex_document,
+    get_cached_article_latex,
+)
+from app.services.latex_builder import build_page_latex
 from app.services.layout_analysis_surya import (
     LayoutAnalysisError,
     SuryaNotAvailableError,
@@ -115,7 +124,7 @@ async def index() -> HTMLResponse:
         content=(settings.static_dir / "index.html").read_text(encoding="utf-8")
     )
 
-
+# получение файла пользователя с фронта
 @router.post(
     "/api/process-pdf",
     response_model=DocumentProcessingResult,
@@ -169,6 +178,43 @@ async def segment_articles_endpoint(
     payload: ArticleSegmentationRequest,
 ) -> ArticleSegmentationResult:
     return segment_document_into_articles(payload.pages)
+
+
+@router.post(
+    "/build-latex-page",
+    response_model=LatexBuildResult,
+    status_code=status.HTTP_200_OK,
+)
+async def build_latex_page_endpoint(
+    page_content: PageContent,
+) -> LatexBuildResult:
+    return build_page_latex(page_content)
+
+
+@router.post(
+    "/build-latex-article",
+    response_model=ArticleLatexDocumentResult,
+    status_code=status.HTTP_200_OK,
+)
+async def build_latex_article_endpoint(
+    article_content: ArticleContent,
+) -> ArticleLatexDocumentResult:
+    return build_article_latex_document(article_content, article_content.metadata)
+
+
+@router.get(
+    "/article-latex/{article_id}",
+    response_model=ArticleLatexDocumentResult,
+    status_code=status.HTTP_200_OK,
+)
+async def get_article_latex_endpoint(article_id: str) -> ArticleLatexDocumentResult:
+    try:
+        return get_cached_article_latex(article_id)
+    except ArticleLatexNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
 
 
 @router.post(

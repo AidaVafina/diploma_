@@ -354,14 +354,16 @@ function createViewMetaLine(pageContent, fallbackText = "JSON-путь недо�
   return meta;
 }
 
-function createTextViewPanel(titleText, contentText, pageContent, modifier = "") {
+function createTextViewPanel(titleText, contentText, pageContent, modifier = "", options = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = "page-text-summary";
 
   const title = document.createElement("h4");
   title.textContent = titleText;
   wrapper.appendChild(title);
-  wrapper.appendChild(createViewMetaLine(pageContent));
+  if (options.showMeta !== false) {
+    wrapper.appendChild(createViewMetaLine(pageContent));
+  }
 
   const textNode = document.createElement("pre");
   textNode.className = `page-text-summary__content${modifier ? ` page-text-summary__content--${modifier}` : ""}`;
@@ -621,8 +623,14 @@ function createPageContentViewer(pageContent) {
   viewer.className = "page-result-viewer";
 
   const presentation = pageContent.presentation || {};
-  const viewModes = presentation.available_views || ["readable", "tex", "structure"];
-  const defaultView = presentation.default_view || "readable";
+  const configuredViewModes = presentation.available_views || ["readable", "tex", "structure"];
+  const viewModes = configuredViewModes.filter((mode) => mode !== "tex");
+  if (!viewModes.length) {
+    viewModes.push("readable");
+  }
+  const defaultView = viewModes.includes(presentation.default_view)
+    ? presentation.default_view
+    : "readable";
 
   const buttonsWrap = document.createElement("div");
   buttonsWrap.className = "page-result-switcher";
@@ -634,15 +642,6 @@ function createPageContentViewer(pageContent) {
     readable: {
       label: "Текст",
       panel: renderReadableView(pageContent),
-    },
-    tex: {
-      label: "TeX",
-      panel: createTextViewPanel(
-        "Предварительный TeX страницы",
-        presentation.tex_preview || "% TeX preview пока недоступен.",
-        pageContent,
-        "tex"
-      ),
     },
     structure: {
       label: "Структура",
@@ -689,6 +688,102 @@ function createPageContentViewer(pageContent) {
   return viewer;
 }
 
+function createTabbedViewer(viewDefinitions, viewOrder, defaultView = "") {
+  const viewer = document.createElement("div");
+  viewer.className = "page-result-viewer article-result-viewer";
+
+  const buttonsWrap = document.createElement("div");
+  buttonsWrap.className = "page-result-switcher";
+
+  const panelsWrap = document.createElement("div");
+  panelsWrap.className = "page-result-panels";
+
+  const buttons = new Map();
+  const panels = new Map();
+
+  function activateView(mode) {
+    buttons.forEach((button, buttonMode) => {
+      button.classList.toggle("page-result-switcher__button--active", buttonMode === mode);
+    });
+    panels.forEach((panel, panelMode) => {
+      panel.hidden = panelMode !== mode;
+    });
+  }
+
+  viewOrder.forEach((mode) => {
+    const view = viewDefinitions[mode];
+    if (!view) {
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "page-result-switcher__button";
+    button.textContent = view.label;
+    button.addEventListener("click", () => activateView(mode));
+    buttons.set(mode, button);
+    buttonsWrap.appendChild(button);
+
+    const panel = document.createElement("div");
+    panel.className = "page-result-panel";
+    panel.appendChild(view.panel);
+    panels.set(mode, panel);
+    panelsWrap.appendChild(panel);
+  });
+
+  viewer.appendChild(buttonsWrap);
+  viewer.appendChild(panelsWrap);
+  activateView(viewDefinitions[defaultView] ? defaultView : viewOrder[0]);
+  return viewer;
+}
+
+function createArticleTextPanel(article, pages) {
+  const textBlock = document.createElement("div");
+  textBlock.className = "article-item__text";
+
+  const textTitle = document.createElement("h5");
+  textTitle.textContent = "Текст статьи";
+
+  const textContent = createArticleReadableText(article, pages);
+
+  textBlock.appendChild(textTitle);
+  textBlock.appendChild(textContent);
+  return textBlock;
+}
+
+function createArticleLatexPanel(article) {
+  const latexBlock = document.createElement("div");
+  latexBlock.className = "article-item__latex";
+
+  const latexTitle = document.createElement("h5");
+  latexTitle.textContent = "LaTeX статьи";
+
+  const latexContent = document.createElement("pre");
+  latexContent.className = "article-item__latex-content";
+  latexContent.textContent = article.article_latex_preview || "% LaTeX статьи недоступен.";
+
+  latexBlock.appendChild(latexTitle);
+  latexBlock.appendChild(latexContent);
+  return latexBlock;
+}
+
+function createArticleContentViewer(article, pages) {
+  return createTabbedViewer(
+    {
+      text: {
+        label: "Текст",
+        panel: createArticleTextPanel(article, pages),
+      },
+      latex: {
+        label: "LaTeX",
+        panel: createArticleLatexPanel(article),
+      },
+    },
+    ["text", "latex"],
+    "text"
+  );
+}
+
 function createTextBlockProcessorSection(page) {
   const section = document.createElement("section");
   section.className = "page-ocr-section";
@@ -704,7 +799,7 @@ function createTextBlockProcessorSection(page) {
   const description = document.createElement("p");
   description.className = "page-ocr-section__description";
   description.textContent =
-    "На основе упорядоченных блоков страницы формируется единый PageContent: машинная структура, читаемый текст и предварительный TeX.";
+    "На основе упорядоченных блоков страницы формируется единый PageContent: машинная структура и читаемый текст.";
   titleWrap.appendChild(description);
 
   const status = document.createElement("p");
@@ -731,7 +826,7 @@ function createTextBlockProcessorSection(page) {
       status.classList.add("page-ocr-section__status--error");
     } else {
       status.textContent =
-        "Сформирован единый PageContent: машинная структура страницы, человекочитаемый текст и предварительный TeX доступны в переключаемых режимах.";
+        "Сформирован единый PageContent: машинная структура страницы и человекочитаемый текст доступны в переключаемых режимах.";
     }
     content.appendChild(createPageContentViewer(page.text_block_content));
     return section;
@@ -820,21 +915,13 @@ function createArticleSegmentationSection(segmentation, pages) {
     meta.className = "article-item__meta";
     meta.appendChild(createBlockDetailRow("Article ID", article.article_id));
     meta.appendChild(createBlockDetailRow("Pages", (article.page_numbers || []).join(", ") || "—"));
+    meta.appendChild(createBlockDetailRow("Title", article.title_preview || "—"));
+    meta.appendChild(createBlockDetailRow("Author", article.author_preview || "—"));
     meta.appendChild(createBlockDetailRow("Start", String(article.start_page)));
     meta.appendChild(createBlockDetailRow("End", String(article.end_page)));
     body.appendChild(meta);
 
-    const textBlock = document.createElement("div");
-    textBlock.className = "article-item__text";
-
-    const textTitle = document.createElement("h5");
-    textTitle.textContent = "Текст статьи";
-
-    const textContent = createArticleReadableText(article, pages);
-
-    textBlock.appendChild(textTitle);
-    textBlock.appendChild(textContent);
-    body.appendChild(textBlock);
+    body.appendChild(createArticleContentViewer(article, pages));
 
     details.appendChild(body);
     list.appendChild(details);

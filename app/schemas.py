@@ -129,6 +129,8 @@ class PagePresentation(BaseModel):
     )
     readable_text: str = ""
     tex_preview: str = ""
+    latex_preview: str = ""
+    latex_document: str = ""
 
 
 class PageContent(BaseModel):
@@ -164,6 +166,8 @@ class ArticlePreview(BaseModel):
     title_preview: str = ""
     author_preview: str = ""
     article_text: str = ""
+    article_latex_preview: str = ""
+    article_latex_document: str = ""
     needs_review: bool = False
     boundary_confidence: float = Field(..., ge=0.0, le=1.0)
     debug_info: dict[str, Any] = Field(default_factory=dict)
@@ -204,6 +208,54 @@ class TextPostprocessResponse(BaseModel):
 
 class ArticleSegmentationRequest(BaseModel):
     pages: list[PageContent] = Field(default_factory=list)
+
+
+class LatexMetadata(BaseModel):
+    title: str | None = None
+    author: str | None = None
+    documentclass: str = "article"
+
+
+class ArticleContent(BaseModel):
+    article_id: str | None = None
+    page_numbers: list[int] = Field(default_factory=list)
+    title: str | None = None
+    author: str | None = None
+    article_text: str = ""
+    structured_content: list[ProcessedBlock] = Field(default_factory=list)
+    pages: list[PageContent] = Field(default_factory=list)
+    blocks: list[ProcessedBlock] = Field(default_factory=list)
+    metadata: LatexMetadata | None = None
+
+
+class LatexBuildResult(BaseModel):
+    latex_preview: str = ""
+    latex_document: str = ""
+    needs_review: bool = False
+
+
+class LatexDocumentResult(BaseModel):
+    latex_preview: str = ""
+    latex_document: str = ""
+    needs_review: bool = False
+    metadata: LatexMetadata | None = None
+
+
+class ArticleLatexPreviewResult(BaseModel):
+    article_id: str | None = None
+    page_numbers: list[int] = Field(default_factory=list)
+    latex_preview: str = ""
+    needs_review: bool = False
+    metadata: LatexMetadata | None = None
+
+
+class ArticleLatexDocumentResult(BaseModel):
+    article_id: str | None = None
+    page_numbers: list[int] = Field(default_factory=list)
+    latex_preview: str = ""
+    latex_document: str = ""
+    needs_review: bool = False
+    metadata: LatexMetadata | None = None
 
 
 class DocumentProcessingResult(BaseModel):

@@ -45,7 +45,7 @@ def normalize_text(text: str) -> str:
 def has_enough_text(text: str, threshold: int | None = None) -> bool:
     return len(normalize_text(text)) >= (threshold or settings.text_length_threshold)
 
-
+# рендер страницы в изображение, так как layout-анализ, OCR блоков и распознавание формул работают по изображению страницы
 def render_page(page: fitz.Page, dpi: int | None = None) -> fitz.Pixmap:
     scale = (dpi or settings.render_dpi) / 72
     matrix = fitz.Matrix(scale, scale)
@@ -56,6 +56,7 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
     results: list[PageProcessingResult] = []
 
     try:
+        # открытие документа
         document = fitz.open(stream=pdf_bytes, filetype="pdf")
     except fitz.FileDataError as exc:
         logger.exception("Invalid PDF data received")
@@ -69,6 +70,7 @@ def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
     with document:
         logger.info("Opened PDF document with %s pages", document.page_count)
 
+        # проход по всем страницам PDF
         for page_number, page in enumerate(document, start=1):
             logger.info("Processing page %s", page_number)
             extracted_text = (page.get_text("text") or "").strip()

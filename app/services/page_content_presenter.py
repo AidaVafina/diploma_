@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from app.core.config import settings
 from app.schemas import PageContent, PagePresentation, ProcessedBlock
+from app.services.latex_builder import build_blocks_latex_body, build_latex_document
 
 TEXTUAL_BLOCK_TYPES = {"text", "title", "header", "footer", "page_number"}
 TEX_ESCAPE_RE = re.compile(r"([\\&%$#_{}])")
@@ -117,10 +118,14 @@ def build_page_content(
 ) -> PageContent:
     ordered_blocks = sort_processed_blocks(blocks)
     page_text = build_page_text(ordered_blocks)
+    latex_preview, _ = build_blocks_latex_body(ordered_blocks)
+    latex_document = build_latex_document(latex_preview)
     presentation = PagePresentation(
         default_view="readable",
         readable_text=build_readable_text(ordered_blocks),
-        tex_preview=build_tex_preview(ordered_blocks),
+        tex_preview=latex_preview,
+        latex_preview=latex_preview,
+        latex_document=latex_document,
     )
     needs_review_count = sum(1 for block in ordered_blocks if block.needs_review)
 
