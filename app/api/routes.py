@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import json
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import HTMLResponse
@@ -20,6 +21,7 @@ from app.schemas import (
     LayoutAnalysisResponse,
     PageContent,
     PageTextResponse,
+    ReadablePdfExportRequest,
     TextPostprocessRequest,
     TextPostprocessResponse,
 )
@@ -49,6 +51,11 @@ from app.services.pdf_processor import (
     PDFProcessingError,
     iter_pdf_processing_events,
     process_pdf_document,
+)
+from app.services.readable_pdf_exporter import (
+    ReadablePdfExportError,
+    export_readable_pdf,
+    resolve_readable_pdf_filename,
 )
 from app.services.text_postprocessor import postprocess_text
 from app.services.text_block_processor import (
@@ -230,6 +237,35 @@ async def process_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
         event_stream(),
         media_type="application/x-ndjson",
         headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.post("/api/export-readable-pdf", status_code=status.HTTP_200_OK)
+async def export_readable_pdf_endpoint(payload: ReadablePdfExportRequest) -> Response:
+    try:
+        pdf_bytes = export_readable_pdf(payload)
+    except ReadablePdfExportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    filename = resolve_readable_pdf_filename(payload.filename, payload.title)
+    encoded_filename = quote(filename)
+    ascii_fallback = filename.encode("ascii", "ignore").decode("ascii").strip()
+    if not ascii_fallback:
+        ascii_fallback = "readable-text.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}"; '
+                f"filename*=UTF-8''{encoded_filename}"
+            ),
+        },
     )
 
 

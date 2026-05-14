@@ -197,6 +197,62 @@ OCR выполняется только для блоков с `route_to = "text
 }
 ```
 
+### `POST /process-formula-blocks`
+
+Принимает `multipart/form-data`:
+
+- `file` — изображение страницы;
+- `blocks` — JSON-массив routed blocks;
+- `page_number` — необязательный номер страницы.
+
+OCR выполняется только для блоков с `route_to = "formula_pipeline"` или `type = "formula"`. Для каждого formula-блока сервис вырезает crop с padding, сохраняет его во временный cache и пытается получить LaTeX через Surya `RecognitionPredictor` в режиме `block_without_boxes`. Если результат пустой, confidence ниже порога `FORMULA_BLOCK_SURYA_CONFIDENCE_THRESHOLD` или Surya завершился ошибкой, автоматически используется fallback через `pix2tex`.
+
+Пример ответа:
+
+```json
+{
+  "page_content_id": "2af6c1...",
+  "page_text": "Рассмотрим ряд\n[FORMULA]\nСледовательно...",
+  "result_json_path": "/tmp/formula-block-results/2af6c1....json",
+  "blocks": [
+    {
+      "block_id": "block_001",
+      "type": "text",
+      "reading_order": 1,
+      "bbox": [40, 120, 620, 220],
+      "route_to": "text_pipeline",
+      "content": "Рассмотрим ряд",
+      "confidence": 0.94,
+      "needs_review": false,
+      "crop_data_url": "data:image/png;base64,iVBORw0KGgoAAA..."
+    },
+    {
+      "block_id": "block_002",
+      "type": "formula",
+      "reading_order": 2,
+      "bbox": [100, 260, 580, 340],
+      "route_to": "formula_pipeline",
+      "latex": "\\sum_{n=1}^{\\infty} a_n",
+      "confidence": 0.82,
+      "needs_review": false,
+      "crop_path": "/tmp/formula-block-crops/block_002.png",
+      "crop_data_url": "data:image/png;base64,iVBORw0KGgoAAA...",
+      "formula_result": {
+        "latex": "\\sum_{n=1}^{\\infty} a_n",
+        "confidence": 0.82
+      },
+      "formula_backend": "surya",
+      "ocr_result": null,
+      "ocr_backend": "none"
+    }
+  ]
+}
+```
+
+### `GET /formula-crop/{block_id}`
+
+Возвращает PNG-изображение сохранённого crop-фрагмента формулы для ранее обработанного блока.
+
 ### `GET /page-text?page_content_id=<id>`
 
 Возвращает собранный текст страницы для ранее обработанного набора блоков.
@@ -210,6 +266,8 @@ OCR выполняется только для блоков с `route_to = "text
 - `TEXT_BLOCK_REVIEW_CONFIDENCE` — порог confidence для `needs_review`;
 - `TEXT_BLOCK_MIN_LENGTH` — минимальная длина текста без ручной проверки;
 - `TEXT_BLOCK_FORMULA_PLACEHOLDER` — placeholder формулы при сборке `page_text`.
+- `FORMULA_BLOCK_CROP_PADDING` — padding вокруг bbox формулы перед вырезанием crop;
+- `FORMULA_BLOCK_SURYA_CONFIDENCE_THRESHOLD` — минимальный confidence Surya перед переходом на `pix2tex`.
 
 ## Примечание по Surya
 

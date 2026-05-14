@@ -13,8 +13,16 @@
       defer
       src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
     ></script>
-    <link rel="stylesheet" href="/static/styles.css?v=20260430-live-loader" />
-    <script src="/static/app.js?v=20260430-live-loader" defer></script>
+    <script>
+      window.MathJax = {
+        svg: {
+          fontCache: "none",
+        },
+      };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260506-formula-size-tune" />
+    <script src="/static/app.js?v=20260506-formula-size-tune" defer></script>
   </head>
   <body>
     <main class="layout">

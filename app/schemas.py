@@ -261,3 +261,33 @@ class ArticleLatexDocumentResult(BaseModel):
 class DocumentProcessingResult(BaseModel):
     pages: list[PageProcessingResult] = Field(default_factory=list)
     article_segmentation: ArticleSegmentationResult | None = None
+
+
+ReadablePdfBlockKind = Literal[
+    "title",
+    "author",
+    "paragraph",
+    "formula",
+    "placeholder",
+]
+
+
+class ReadablePdfBlock(BaseModel):
+    kind: ReadablePdfBlockKind
+    text: str = ""
+    image_data_url: str | None = None
+    image_width: int | None = Field(default=None, ge=1)
+    image_height: int | None = Field(default=None, ge=1)
+
+
+class ReadablePdfSection(BaseModel):
+    heading: str | None = None
+    note: str | None = None
+    blocks: list[ReadablePdfBlock] = Field(default_factory=list)
+
+
+class ReadablePdfExportRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    subtitle: str | None = None
+    filename: str | None = None
+    sections: list[ReadablePdfSection] = Field(default_factory=list)

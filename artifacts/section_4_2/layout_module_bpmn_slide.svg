@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3400" height="1300" viewBox="0 0 3400 1300">
+<rect x="140" y="280" width="3120" height="900" rx="34" ry="34" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="4" />
+<line x1="320" y1="280" x2="320" y2="1180" stroke="#CBD5E1" stroke-width="3" />
+<text x="230" y="708.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Модуль</text>
+<text x="230" y="744.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">layout-</text>
+<text x="230" y="780.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">анализа</text>
+<polyline points="342,730 420,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="420,730 398,717 398,743" fill="#55637D" />
+<polyline points="730,730 810,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="810,730 788,717 788,743" fill="#55637D" />
+<polyline points="810,730 810,520 900,520" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="900,520 878,507 878,533" fill="#55637D" />
+<polyline points="810,730 810,940 900,940" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="900,940 878,927 878,953" fill="#55637D" />
+<polyline points="1250,520 1360,520 1360,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1360,730 1347,708 1373,708" fill="#55637D" />
+<polyline points="1250,940 1360,940 1360,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1360,730 1347,752 1373,752" fill="#55637D" />
+<polyline points="1360,730 1520,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1520,730 1498,717 1498,743" fill="#55637D" />
+<polyline points="1910,730 1985,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1985,730 1963,717 1963,743" fill="#55637D" />
+<polyline points="1985,730 2430,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2430,730 2408,717 2408,743" fill="#55637D" />
+<text x="2130" y="686" font-size="22" font-weight="700" fill="#667085" font-family="Arial">нет formula</text>
+<polyline points="1985,730 1985,1040 2030,1040" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2030,1040 2008,1027 2008,1053" fill="#55637D" />
+<text x="1828" y="886" font-size="22" font-weight="700" fill="#667085" font-family="Arial">есть formula</text>
+<polyline points="2390,1040 2430,1040 2430,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2430,730 2417,752 2443,752" fill="#55637D" />
+<polyline points="2430,730 2470,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2470,730 2448,717 2448,743" fill="#55637D" />
+<polyline points="2850,730 2940,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2940,730 2918,717 2918,743" fill="#55637D" />
+<polyline points="3180,730 3174,730" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3174,730 3196,717 3196,743" fill="#55637D" />
+<polygon points="810,684 856,730 810,776 764,730" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="810" y="744" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">+</text>
+<polygon points="1360,684 1406,730 1360,776 1314,730" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="1360" y="744" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">+</text>
+<polygon points="1985,684 2031,730 1985,776 1939,730" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="1985" y="744" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">X</text>
+<polygon points="2430,684 2476,730 2430,776 2384,730" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="2430" y="744" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">X</text>
+<rect x="420" y="580" width="310" height="300" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="575.0" y="693.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Получить вход</text>
+<text x="575.0" y="725.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">страницы</text>
+<text x="575.0" y="765.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">RGB-изображение</text>
+<text x="575.0" y="793.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">после рендера PDF</text>
+<rect x="900" y="420" width="350" height="200" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1075.0" y="483.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Определить</text>
+<text x="1075.0" y="515.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">layout-блоки</text>
+<text x="1075.0" y="555.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">Surya LayoutPredictor</text>
+<text x="1075.0" y="583.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">bbox, label, position</text>
+<rect x="900" y="840" width="350" height="200" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1075.0" y="919.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Извлечь OCR-строки</text>
+<text x="1075.0" y="959.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">Surya RecognitionPredictor</text>
+<text x="1075.0" y="987.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">ocr_with_boxes</text>
+<rect x="1520" y="560" width="390" height="340" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1715.0" y="665.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Сформировать</text>
+<text x="1715.0" y="697.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">LayoutBlock</text>
+<text x="1715.0" y="737.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">нормализовать тип блока</text>
+<text x="1715.0" y="765.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">сопоставить OCR-строки</text>
+<text x="1715.0" y="793.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">заполнить text, confidence</text>
+<text x="1715.0" y="821.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">и reading_order</text>
+<rect x="2030" y="940" width="360" height="200" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="2210.0" y="1005.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Извлечь LaTeX</text>
+<text x="2210.0" y="1045.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">вырезать formula-блок</text>
+<text x="2210.0" y="1073.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">block_without_boxes</text>
+<text x="2210.0" y="1101.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">сохранить latex</text>
+<rect x="2470" y="560" width="380" height="340" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="2660.0" y="653.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Постобработать блоки</text>
+<text x="2660.0" y="693.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">удалить мелкие области</text>
+<text x="2660.0" y="721.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">определить page_number</text>
+<text x="2660.0" y="749.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">объединить соседние</text>
+<text x="2660.0" y="777.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">text/title/header/footer</text>
+<text x="2660.0" y="805.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">перенумеровать</text>
+<text x="2660.0" y="833.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">reading_order</text>
+<rect x="2940" y="560" width="240" height="340" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="3060.0" y="665.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Сохранить</text>
+<text x="3060.0" y="697.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">артефакты</text>
+<text x="3060.0" y="737.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">PNG-визуализация</text>
+<text x="3060.0" y="765.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">JSON-результат</text>
+<text x="3060.0" y="793.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">cache и</text>
+<text x="3060.0" y="821.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">response</text>
+<circle cx="300" cy="730" r="42" fill="#EAF8F0" stroke="#4FA06A" stroke-width="6" />
+<text x="300" y="820" font-size="22" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Старт</text>
+<circle cx="3220" cy="730" r="46" fill="#FBECEC" stroke="#C84A3D" stroke-width="6" />
+<circle cx="3220" cy="730" r="36" fill="none" stroke="#C84A3D" stroke-width="6" />
+<text x="3220" y="824" font-size="22" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Конец</text>
+</svg>

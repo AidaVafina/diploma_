@@ -6,6 +6,12 @@ const processingIndicatorNode = document.getElementById("processing-indicator");
 const processingStageNode = document.getElementById("processing-stage");
 const summaryNode = document.getElementById("summary");
 const resultsNode = document.getElementById("results");
+const PDF_FORMULA_MAX_WIDTH = 430;
+const PDF_FORMULA_FONT_SIZE_PX = 13;
+const PDF_FORMULA_RENDER_SCALE = 2;
+const PDF_FORMULA_X_PADDING = 4;
+const PDF_FORMULA_Y_PADDING = 3;
+const PDF_FORMULA_RENDER_CACHE = new Map();
 
 function setStatus(message, isError = false) {
   statusNode.textContent = message;
@@ -204,6 +210,298 @@ function collectArticleText(article, pages) {
     .filter(Boolean);
 
   return parts.join("\n\n").trim();
+}
+
+function getSourceDocumentName() {
+  return fileInput.files?.[0]?.name || "document.pdf";
+}
+
+function getSourceDocumentStem() {
+  const sourceName = getSourceDocumentName().trim();
+  if (!sourceName) {
+    return "document";
+  }
+
+  return sourceName.replace(/\.[^.]+$/, "") || "document";
+}
+
+function sanitizeFilenamePart(value, fallback = "document") {
+  const cleaned = String(value || "")
+    .replace(/[\\/:*?"<>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || fallback;
+}
+
+async function readErrorMessage(response) {
+  let rawText = "";
+
+  try {
+    rawText = await response.text();
+    const payload = JSON.parse(rawText);
+    if (payload?.detail) {
+      return payload.detail;
+    }
+  } catch (error) {
+    console.warn("Unable to parse error payload:", error);
+  }
+
+  return rawText || "Не удалось сформировать PDF.";
+}
+
+function extractFilenameFromDisposition(headerValue) {
+  if (!headerValue) {
+    return "";
+  }
+
+  const encodedMatch = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1]);
+    } catch (error) {
+      console.warn("Unable to decode attachment filename:", error);
+    }
+  }
+
+  const plainMatch = headerValue.match(/filename="([^"]+)"/i);
+  return plainMatch?.[1] || "";
+}
+
+function waitForNextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
+async function loadImageElement(sourceUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Не удалось загрузить изображение формулы."));
+    image.src = sourceUrl;
+  });
+}
+
+async function ensureMathJaxForPdfExport() {
+  if (!window.MathJax) {
+    return null;
+  }
+
+  if (window.MathJax.startup?.promise) {
+    try {
+      await window.MathJax.startup.promise;
+    } catch (error) {
+      console.warn("MathJax startup failed:", error);
+      return null;
+    }
+  }
+
+  return typeof window.MathJax.tex2svgPromise === "function" ? window.MathJax : null;
+}
+
+async function renderFormulaLatexToPngData(latex) {
+  const normalizedLatex = String(latex || "").trim();
+  if (!normalizedLatex) {
+    return null;
+  }
+
+  if (PDF_FORMULA_RENDER_CACHE.has(normalizedLatex)) {
+    return PDF_FORMULA_RENDER_CACHE.get(normalizedLatex);
+  }
+
+  const renderPromise = (async () => {
+    const mathJax = await ensureMathJaxForPdfExport();
+    if (!mathJax) {
+      return null;
+    }
+
+    let mathContainer = null;
+    try {
+      mathContainer = await mathJax.tex2svgPromise(normalizedLatex, {
+        display: true,
+      });
+    } catch (error) {
+      console.warn("MathJax formula render failed:", error);
+      return null;
+    }
+
+    const host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.left = "-10000px";
+    host.style.top = "0";
+    host.style.opacity = "0";
+    host.style.pointerEvents = "none";
+    host.style.display = "inline-block";
+    host.style.padding = `${PDF_FORMULA_Y_PADDING}px ${PDF_FORMULA_X_PADDING}px`;
+    host.style.background = "#ffffff";
+    host.style.color = "#1f2d33";
+    host.style.fontSize = `${PDF_FORMULA_FONT_SIZE_PX}px`;
+    host.style.lineHeight = "1";
+    host.appendChild(mathContainer);
+    document.body.appendChild(host);
+
+    try {
+      await waitForNextFrame();
+
+      const svgNode = mathContainer.querySelector("svg");
+      if (!svgNode) {
+        return null;
+      }
+
+      const formulaWidth = Math.max(1, Math.ceil(svgNode.getBoundingClientRect().width));
+      const formulaHeight = Math.max(1, Math.ceil(svgNode.getBoundingClientRect().height));
+      const maxFormulaWidth = Math.max(1, PDF_FORMULA_MAX_WIDTH - PDF_FORMULA_X_PADDING * 2);
+      const scaleFactor = formulaWidth > maxFormulaWidth ? maxFormulaWidth / formulaWidth : 1;
+      const scaledFormulaWidth = Math.max(1, Math.ceil(formulaWidth * scaleFactor));
+      const scaledFormulaHeight = Math.max(1, Math.ceil(formulaHeight * scaleFactor));
+      const exportWidth = scaledFormulaWidth + PDF_FORMULA_X_PADDING * 2;
+      const exportHeight = scaledFormulaHeight + PDF_FORMULA_Y_PADDING * 2;
+
+      const svgClone = svgNode.cloneNode(true);
+      svgClone.removeAttribute("style");
+      svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      svgClone.setAttribute("x", String(PDF_FORMULA_X_PADDING));
+      svgClone.setAttribute("y", String(PDF_FORMULA_Y_PADDING));
+      svgClone.setAttribute("width", String(scaledFormulaWidth));
+      svgClone.setAttribute("height", String(scaledFormulaHeight));
+
+      const serializedFormulaSvg = new XMLSerializer().serializeToString(svgClone);
+      const svgMarkup = [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${exportHeight}" viewBox="0 0 ${exportWidth} ${exportHeight}">`,
+        `<rect width="${exportWidth}" height="${exportHeight}" fill="white"/>`,
+        serializedFormulaSvg,
+        "</svg>",
+      ].join("");
+      const svgBlob = new Blob([svgMarkup], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      try {
+        const formulaImage = await loadImageElement(svgUrl);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(exportWidth * PDF_FORMULA_RENDER_SCALE));
+        canvas.height = Math.max(1, Math.ceil(exportHeight * PDF_FORMULA_RENDER_SCALE));
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          return null;
+        }
+
+        context.scale(PDF_FORMULA_RENDER_SCALE, PDF_FORMULA_RENDER_SCALE);
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, exportWidth, exportHeight);
+        context.drawImage(formulaImage, 0, 0, exportWidth, exportHeight);
+
+        return {
+          imageDataUrl: canvas.toDataURL("image/png"),
+          width: exportWidth,
+          height: exportHeight,
+        };
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    } finally {
+      host.remove();
+    }
+  })();
+
+  PDF_FORMULA_RENDER_CACHE.set(normalizedLatex, renderPromise);
+
+  try {
+    return await renderPromise;
+  } catch (error) {
+    PDF_FORMULA_RENDER_CACHE.delete(normalizedLatex);
+    throw error;
+  }
+}
+
+async function prepareReadableBlocksForPdfExport(readableBlocks) {
+  const preparedBlocks = [];
+
+  for (const readableBlock of readableBlocks) {
+    if (readableBlock.kind !== "formula" || readableBlock.isError) {
+      preparedBlocks.push({
+        kind: readableBlock.kind,
+        text: readableBlock.text,
+      });
+      continue;
+    }
+
+    try {
+      const formulaImage = await renderFormulaLatexToPngData(readableBlock.text);
+      if (formulaImage?.imageDataUrl) {
+        preparedBlocks.push({
+          kind: readableBlock.kind,
+          text: readableBlock.text,
+          image_data_url: formulaImage.imageDataUrl,
+          image_width: formulaImage.width,
+          image_height: formulaImage.height,
+        });
+        continue;
+      }
+    } catch (error) {
+      console.warn("Unable to render formula for PDF export:", error);
+    }
+
+    preparedBlocks.push({
+      kind: readableBlock.kind,
+      text: readableBlock.text,
+    });
+  }
+
+  return preparedBlocks;
+}
+
+async function downloadReadablePdf(payloadSource, triggerButton, successMessage) {
+  const initialLabel = triggerButton?.textContent || "";
+
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = "Готовим PDF...";
+  }
+
+  try {
+    setStatus("Подготавливаем содержимое для PDF...");
+    const payload =
+      typeof payloadSource === "function" ? await payloadSource() : await payloadSource;
+
+    setStatus("Формируем PDF с читаемым текстом...");
+    const response = await fetch("/api/export-readable-pdf", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    const blob = await response.blob();
+    const filename =
+      extractFilenameFromDisposition(response.headers.get("Content-Disposition")) ||
+      payload.filename ||
+      "readable-text.pdf";
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+    setStatus(successMessage || "PDF с читаемым текстом сформирован.");
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Не удалось сформировать PDF.", true);
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = initialLabel;
+    }
+  }
 }
 
 function summarizeProcessedContent(block, limit = 110) {
@@ -548,30 +846,32 @@ function renderReadableMath(container) {
   });
 }
 
-function appendReadableBlocks(content, pageContent) {
+function buildReadableBlocks(pageContent) {
   let expectAuthorAfterTitle = false;
+  const readableBlocks = [];
 
   (pageContent.blocks || []).forEach((block) => {
     if (block.type === "formula") {
-      const formulaNode = document.createElement("div");
-      formulaNode.className = "formula";
-
       const cleanedLatex = sanitizeLatexForReadableView(
         block.latex || block.formula_result?.latex || ""
       );
       const latexState = validateLatexForReadableView(cleanedLatex);
 
       if (!cleanedLatex || latexState === false) {
-        formulaNode.classList.add("formula--error");
-        formulaNode.textContent = "[FORMULA ERROR]";
+        readableBlocks.push({
+          kind: "formula",
+          text: "[FORMULA ERROR]",
+          isError: true,
+          isPending: false,
+        });
       } else {
-        formulaNode.textContent = `\\[${cleanedLatex}\\]`;
-        if (latexState === null) {
-          formulaNode.classList.add("formula--pending");
-        }
+        readableBlocks.push({
+          kind: "formula",
+          text: cleanedLatex,
+          isError: false,
+          isPending: latexState === null,
+        });
       }
-
-      content.appendChild(formulaNode);
       return;
     }
 
@@ -581,35 +881,145 @@ function appendReadableBlocks(content, pageContent) {
         return;
       }
 
-      const paragraph = document.createElement("p");
-      paragraph.className = "page-readable-view__paragraph";
-
       const isArticleTitle = isArticleTitleParagraph(block, cleanedText, pageContent);
       const isAuthor = expectAuthorAfterTitle && looksLikeAuthorLine(cleanedText);
       if (isArticleTitle) {
-        paragraph.classList.add(
-          "page-readable-view__paragraph--title",
-          "page-readable-view__paragraph--article-title"
-        );
         expectAuthorAfterTitle = true;
+        readableBlocks.push({
+          kind: "title",
+          text: cleanedText,
+        });
       } else if (isAuthor) {
-        paragraph.classList.add("page-readable-view__paragraph--author");
         expectAuthorAfterTitle = false;
+        readableBlocks.push({
+          kind: "author",
+          text: cleanedText,
+        });
       } else if (!["header", "footer", "page_number"].includes(block.type)) {
         expectAuthorAfterTitle = false;
+        readableBlocks.push({
+          kind: "paragraph",
+          text: cleanedText,
+        });
       }
-
-      paragraph.textContent = cleanedText;
-      content.appendChild(paragraph);
       return;
     }
 
     if (block.type === "table" || block.type === "image") {
-      const placeholder = document.createElement("div");
-      placeholder.className = "page-readable-view__placeholder";
-      placeholder.textContent = block.type === "table" ? "[TABLE]" : "[IMAGE]";
-      content.appendChild(placeholder);
+      readableBlocks.push({
+        kind: "placeholder",
+        text: block.type === "table" ? "[TABLE]" : "[IMAGE]",
+      });
     }
+  });
+
+  return readableBlocks;
+}
+
+function buildFallbackReadableBlocks(text, emptyMessage) {
+  const cleanedText = String(text || "").trim();
+  if (!cleanedText) {
+    return emptyMessage
+      ? [
+          {
+            kind: "placeholder",
+            text: emptyMessage,
+          },
+        ]
+      : [];
+  }
+
+  return [
+    {
+      kind: "paragraph",
+      text: cleanedText,
+    },
+  ];
+}
+
+function buildReadableBlocksForPage(page, articleTitle = "") {
+  if (page.text_block_content?.blocks?.length) {
+    const pageContent = {
+      ...page.text_block_content,
+      article_title: page.text_block_content.article_title || articleTitle,
+    };
+    return buildReadableBlocks(pageContent);
+  }
+
+  return buildFallbackReadableBlocks(getPageReadableText(page), "Текст страницы недоступен.");
+}
+
+function buildReadableBlocksForArticle(article, pages) {
+  const articlePages = getArticlePages(article, pages);
+  let hasPageContent = false;
+  const readableBlocks = [];
+
+  articlePages.forEach((page) => {
+    const pageBlocks = buildReadableBlocksForPage(page, article.title_preview);
+    if (!pageBlocks.length) {
+      return;
+    }
+
+    hasPageContent = true;
+    readableBlocks.push(...pageBlocks);
+  });
+
+  if (hasPageContent) {
+    return readableBlocks;
+  }
+
+  return buildFallbackReadableBlocks(
+    collectArticleText(article, pages),
+    "Текст статьи недоступен."
+  );
+}
+
+function appendReadableBlock(content, readableBlock) {
+  if (readableBlock.kind === "formula") {
+    const formulaNode = document.createElement("div");
+    formulaNode.className = "formula";
+
+    if (readableBlock.isError) {
+      formulaNode.classList.add("formula--error");
+      formulaNode.textContent = readableBlock.text || "[FORMULA ERROR]";
+    } else {
+      formulaNode.textContent = `\\[${readableBlock.text}\\]`;
+      if (readableBlock.isPending) {
+        formulaNode.classList.add("formula--pending");
+      }
+    }
+
+    content.appendChild(formulaNode);
+    return;
+  }
+
+  if (readableBlock.kind === "placeholder") {
+    const placeholder = document.createElement("div");
+    placeholder.className = "page-readable-view__placeholder";
+    placeholder.textContent = readableBlock.text;
+    content.appendChild(placeholder);
+    return;
+  }
+
+  const paragraph = document.createElement("p");
+  paragraph.className = "page-readable-view__paragraph";
+
+  if (readableBlock.kind === "title") {
+    paragraph.classList.add(
+      "page-readable-view__paragraph--title",
+      "page-readable-view__paragraph--article-title"
+    );
+  } else if (readableBlock.kind === "author") {
+    paragraph.classList.add("page-readable-view__paragraph--author");
+  }
+
+  paragraph.textContent = readableBlock.text;
+  content.appendChild(paragraph);
+}
+
+function appendReadableBlocks(content, readableBlocks) {
+  readableBlocks.forEach((readableBlock) => {
+    appendReadableBlock(content, readableBlock);
   });
 }
 
@@ -623,7 +1033,7 @@ function renderReadableView(pageContent) {
 
   const content = document.createElement("div");
   content.className = "page-readable-view__content";
-  appendReadableBlocks(content, pageContent);
+  appendReadableBlocks(content, buildReadableBlocks(pageContent));
 
   wrapper.appendChild(content);
   requestAnimationFrame(() => renderReadableMath(content));
@@ -634,39 +1044,8 @@ function createArticleReadableText(article, pages) {
   const content = document.createElement("div");
   content.className = "article-item__text-content";
 
-  const articlePages = getArticlePages(article, pages);
-  let hasPageContent = false;
-
-  if (articlePages.length) {
-    articlePages.forEach((page) => {
-      if (page.text_block_content?.blocks?.length) {
-        const pageContent = {
-          ...page.text_block_content,
-          article_title: page.text_block_content.article_title || article.title_preview,
-        };
-        appendReadableBlocks(content, pageContent);
-        hasPageContent = true;
-        return;
-      }
-
-      const pageText = getPageReadableText(page);
-      if (pageText) {
-        const paragraph = document.createElement("p");
-        paragraph.textContent = pageText;
-        content.appendChild(paragraph);
-        hasPageContent = true;
-      }
-    });
-
-    if (hasPageContent) {
-      requestAnimationFrame(() => renderReadableMath(content));
-      return content;
-    }
-  }
-
-  const fallbackText = document.createElement("p");
-  fallbackText.textContent = collectArticleText(article, pages) || "Текст статьи недоступен.";
-  content.appendChild(fallbackText);
+  appendReadableBlocks(content, buildReadableBlocksForArticle(article, pages));
+  requestAnimationFrame(() => renderReadableMath(content));
   return content;
 }
 
@@ -850,6 +1229,88 @@ function createArticleContentViewer(article, pages) {
   );
 }
 
+function createSecondaryButton(label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary-button";
+  button.textContent = label;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+async function buildDocumentReadablePdfPayload(pages) {
+  const sourceStem = sanitizeFilenamePart(getSourceDocumentStem(), "document");
+  const sortedPages = pages
+    .slice()
+    .sort((left, right) => left.page_number - right.page_number);
+  const sections = [];
+
+  for (const page of sortedPages) {
+    sections.push({
+      heading: null,
+      note: null,
+      blocks: await prepareReadableBlocksForPdfExport(buildReadableBlocksForPage(page)),
+    });
+  }
+
+  return {
+    title: sourceStem,
+    subtitle: null,
+    filename: `${sourceStem}-readable.pdf`,
+    sections,
+  };
+}
+
+async function buildArticleReadablePdfPayload(article, pages) {
+  const sourceStem = sanitizeFilenamePart(getSourceDocumentStem(), "document");
+  const articleTitle = summarizeArticlePreview(article.title_preview, article.article_id);
+
+  return {
+    title: articleTitle,
+    subtitle: null,
+    filename: `${sourceStem}-${sanitizeFilenamePart(article.article_id, "article")}.pdf`,
+    sections: [
+      {
+        heading: null,
+        note: null,
+        blocks: await prepareReadableBlocksForPdfExport(buildReadableBlocksForArticle(article, pages)),
+      },
+    ],
+  };
+}
+
+function createReadableExportSection(pages) {
+  const section = document.createElement("section");
+  section.className = "readable-export";
+
+  const header = document.createElement("div");
+  header.className = "readable-export__header";
+
+  const titleWrap = document.createElement("div");
+  const title = document.createElement("h3");
+  title.textContent = "Экспорт читаемого текста";
+  titleWrap.appendChild(title);
+
+  const description = document.createElement("p");
+  description.className = "readable-export__description";
+  description.textContent =
+    "Скачайте объединённый PDF с тем читаемым представлением документа, которое показано в интерфейсе.";
+  titleWrap.appendChild(description);
+
+  const exportButton = createSecondaryButton("Скачать PDF документа", async () => {
+    downloadReadablePdf(
+      () => buildDocumentReadablePdfPayload(pages),
+      exportButton,
+      "PDF с читаемым текстом документа сформирован."
+    );
+  });
+
+  header.appendChild(titleWrap);
+  header.appendChild(exportButton);
+  section.appendChild(header);
+  return section;
+}
+
 function createTextBlockProcessorSection(page) {
   const section = document.createElement("section");
   section.className = "page-ocr-section";
@@ -976,6 +1437,18 @@ function createArticleSegmentationSection(segmentation, pages) {
 
     const body = document.createElement("div");
     body.className = "article-item__body";
+
+    const actions = document.createElement("div");
+    actions.className = "article-item__actions";
+    const exportButton = createSecondaryButton("Скачать PDF статьи", async () => {
+      downloadReadablePdf(
+        () => buildArticleReadablePdfPayload(article, pages),
+        exportButton,
+        `PDF статьи "${summarizeArticlePreview(article.title_preview, article.article_id)}" сформирован.`
+      );
+    });
+    actions.appendChild(exportButton);
+    body.appendChild(actions);
 
     const meta = document.createElement("div");
     meta.className = "article-item__meta";
@@ -1124,6 +1597,8 @@ function renderResults(documentResult) {
     `Layout OK: ${pagesWithLayout} | Layout ошибок: ${pagesWithLayoutError} | ` +
     `PageContent OK: ${pagesWithTextBlocks} | PageContent ошибок: ${pagesWithTextBlockError}` +
     articleSummary;
+
+  resultsNode.appendChild(createReadableExportSection(pages));
 
   if (articleSegmentation) {
     resultsNode.appendChild(createArticleSegmentationSection(articleSegmentation, pages));

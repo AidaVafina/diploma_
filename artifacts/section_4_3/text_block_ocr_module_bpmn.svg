@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="5400" height="1800" viewBox="0 0 5400 1800">
+<text x="140" y="122" font-size="60" font-weight="700" fill="#1F2937" font-family="Arial">Модуль OCR текстовых блоков в формате BPMN</text>
+<text x="140" y="168" font-size="30" fill="#667085" font-family="Arial">PaddleOCR для routed text-блоков, fallback на seed_text и правила needs_review</text>
+<line x1="140" y1="198" x2="5260" y2="198" stroke="#DCE3EE" stroke-width="3" />
+<rect x="140" y="460" width="5120" height="1220" rx="34" ry="34" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="4" />
+<line x1="330" y1="460" x2="330" y2="1680" stroke="#CBD5E1" stroke-width="3" />
+<text x="235" y="1030.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Модуль</text>
+<text x="235" y="1066.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">OCR</text>
+<text x="235" y="1102.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">текстовых</text>
+<text x="235" y="1138.0" font-size="30" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">блоков</text>
+<polyline points="362,1080 460,1080" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="460,1080 438,1067 438,1093" fill="#55637D" />
+<polyline points="820,1080 960,1080" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="960,1080 938,1067 938,1093" fill="#55637D" />
+<polyline points="1320,1080 1420,1080" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1420,1080 1398,1067 1398,1093" fill="#55637D" />
+<text x="1280" y="1032" font-size="22" font-weight="700" fill="#667085" font-family="Arial">цикл по блокам</text>
+<polyline points="1466,1080 1466,780 1510,780" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1510,780 1488,767 1488,793" fill="#55637D" />
+<text x="1450" y="870" font-size="22" font-weight="700" fill="#667085" font-family="Arial">нет</text>
+<polyline points="1420,1126 1420,1400 1510,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="1510,1400 1488,1387 1488,1413" fill="#55637D" />
+<text x="1350" y="1260" font-size="22" font-weight="700" fill="#667085" font-family="Arial">да</text>
+<polyline points="1880,1400 2020,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2020,1400 1998,1387 1998,1413" fill="#55637D" />
+<polyline points="2390,1400 2460,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2460,1400 2438,1387 2438,1413" fill="#55637D" />
+<polyline points="2506,1400 3000,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3000,1400 2978,1387 2978,1413" fill="#55637D" />
+<text x="2665" y="1358" font-size="22" font-weight="700" fill="#667085" font-family="Arial">да</text>
+<polyline points="2460,1446 2460,1570 2520,1570" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="2520,1570 2498,1557 2498,1583" fill="#55637D" />
+<text x="2210" y="1535" font-size="22" font-weight="700" fill="#667085" font-family="Arial">ошибка / unavailable</text>
+<polyline points="2890,1570 3000,1570 3000,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3000,1400 2987,1422 3013,1422" fill="#55637D" />
+<polyline points="3046,1400 3130,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3130,1400 3108,1387 3108,1413" fill="#55637D" />
+<polyline points="3500,1400 3640,1400" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3640,1400 3618,1387 3618,1413" fill="#55637D" />
+<polyline points="3825,1270 3825,910" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3825,910 3812,932 3838,932" fill="#55637D" />
+<polyline points="1880,780 3640,780" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="3640,780 3618,767 3618,793" fill="#55637D" />
+<polyline points="4010,760 4180,760" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="4180,760 4158,747 4158,773" fill="#55637D" />
+<text x="4040" y="712" font-size="22" font-weight="700" fill="#667085" font-family="Arial">после всех блоков</text>
+<polyline points="4540,760 4680,760" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="4680,760 4658,747 4658,773" fill="#55637D" />
+<polyline points="5060,760 5184,760" fill="none" stroke="#55637D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+<polygon points="5184,760 5162,747 5162,773" fill="#55637D" />
+<polygon points="1420,1034 1466,1080 1420,1126 1374,1080" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="1420" y="1094" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">X</text>
+<polygon points="2460,1354 2506,1400 2460,1446 2414,1400" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="2460" y="1414" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">X</text>
+<polygon points="3000,1354 3046,1400 3000,1446 2954,1400" fill="#FFF8E8" stroke="#D18B00" stroke-width="5" />
+<text x="3000" y="1414" font-size="38" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">X</text>
+<rect x="460" y="940" width="360" height="280" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="640.0" y="1043.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Получить вход</text>
+<text x="640.0" y="1075.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">страницы</text>
+<text x="640.0" y="1115.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">page_image</text>
+<text x="640.0" y="1143.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">routed_blocks</text>
+<rect x="960" y="940" width="360" height="280" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1140.0" y="1043.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Отсортировать</text>
+<text x="1140.0" y="1075.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">блоки</text>
+<text x="1140.0" y="1115.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">reading_order</text>
+<text x="1140.0" y="1143.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">y, x, block_id</text>
+<rect x="1510" y="650" width="370" height="260" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1695.0" y="743.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Сохранить</text>
+<text x="1695.0" y="775.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">нетекстовый блок</text>
+<text x="1695.0" y="815.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">formula, table, image</text>
+<text x="1695.0" y="843.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">без повторного OCR</text>
+<rect x="1510" y="1270" width="370" height="260" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="1695.0" y="1379.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Вырезать text-блок</text>
+<text x="1695.0" y="1419.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">clamp_bbox</text>
+<text x="1695.0" y="1447.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">crop_block</text>
+<rect x="2020" y="1270" width="370" height="260" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="2205.0" y="1379.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Запустить PaddleOCR</text>
+<text x="2205.0" y="1419.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">predict() или ocr()</text>
+<text x="2205.0" y="1447.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">получить OCRResult</text>
+<rect x="2520" y="1470" width="370" height="200" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="2705.0" y="1549.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Fallback на seed_text</text>
+<text x="2705.0" y="1589.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">seed_text</text>
+<text x="2705.0" y="1617.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">seed_confidence</text>
+<rect x="3130" y="1270" width="370" height="260" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="3315.0" y="1365.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Очистить текст</text>
+<text x="3315.0" y="1405.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">postprocess_text</text>
+<text x="3315.0" y="1433.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">убрать шум и</text>
+<text x="3315.0" y="1461.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">лишние пробелы</text>
+<rect x="3640" y="1270" width="370" height="260" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="3825.0" y="1351.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Оценить качество</text>
+<text x="3825.0" y="1391.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">empty text</text>
+<text x="3825.0" y="1419.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">confidence &lt; threshold</text>
+<text x="3825.0" y="1447.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">length &lt; min</text>
+<text x="3825.0" y="1475.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">backend reserve</text>
+<rect x="3640" y="610" width="370" height="300" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="3825.0" y="695.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Сформировать</text>
+<text x="3825.0" y="727.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">ProcessedBlock</text>
+<text x="3825.0" y="767.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">content, confidence</text>
+<text x="3825.0" y="795.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">needs_review</text>
+<text x="3825.0" y="823.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">crop_data_url</text>
+<text x="3825.0" y="851.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">ocr_backend</text>
+<rect x="4180" y="610" width="360" height="300" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="4360.0" y="753.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Собрать PageContent</text>
+<text x="4360.0" y="793.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">build_page_content</text>
+<rect x="4680" y="610" width="380" height="300" rx="34" ry="34" fill="#EEF3FC" stroke="#6078B6" stroke-width="5" />
+<text x="4870.0" y="739.0" font-size="28" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Сохранить результат</text>
+<text x="4870.0" y="779.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">JSON в /tmp</text>
+<text x="4870.0" y="807.0" font-size="24" text-anchor="middle" fill="#1F2937" font-family="Arial">cache_page_content</text>
+<circle cx="320" cy="1080" r="42" fill="#EAF8F0" stroke="#4FA06A" stroke-width="6" />
+<text x="320" y="1170" font-size="22" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Старт</text>
+<circle cx="5230" cy="760" r="46" fill="#FBECEC" stroke="#C84A3D" stroke-width="6" />
+<circle cx="5230" cy="760" r="36" fill="none" stroke="#C84A3D" stroke-width="6" />
+<text x="5230" y="854" font-size="22" font-weight="700" text-anchor="middle" fill="#1F2937" font-family="Arial">Конец</text>
+</svg>

@@ -1,0 +1,22 @@
+{
+  "output": "/Users/aidavafina/Desktop/diploma 4/artifacts/metrics_slide/metrics_slide.pptx",
+  "outputBytes": 15499,
+  "slideCount": 1,
+  "slideSize": {
+    "width": 1600,
+    "height": 900
+  },
+  "previewDir": "/Users/aidavafina/Desktop/diploma 4/artifacts/metrics_slide/previews",
+  "previewPaths": [
+    "/Users/aidavafina/Desktop/diploma 4/artifacts/metrics_slide/previews/slide-01.png"
+  ],
+  "layoutResults": [],
+  "slides": [
+    {
+      "index": 1,
+      "requestedSlideNumber": 18,
+      "modulePath": "/Users/aidavafina/Desktop/diploma 4/artifacts/metrics_slide/src/slide-18.mjs",
+      "exportName": "slide18"
+    }
+  ]
+}

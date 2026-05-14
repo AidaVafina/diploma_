@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3200" height="1280" viewBox="0 0 3200 1280">
+<rect x="120" y="260" width="400" height="400" rx="34" ry="34" fill="#F4F8FF" stroke="#4F46E5" stroke-width="6" />
+<text x="320.0" y="419.0" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">1. Вход модуля</text>
+<text x="320.0" y="460.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">RGB-изображение</text>
+<text x="320.0" y="495.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">страницы</text>
+<text x="320.0" y="530.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">после рендера PDF</text>
+<rect x="640" y="260" width="500" height="400" rx="34" ry="34" fill="#F4F8FF" stroke="#4F46E5" stroke-width="6" />
+<text x="890.0" y="384.0" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">2. Сырые данные Surya</text>
+<text x="890.0" y="425.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">LayoutPredictor выделяет</text>
+<text x="890.0" y="460.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">области страницы</text>
+<text x="890.0" y="518.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">RecognitionPredictor извлекает</text>
+<text x="890.0" y="553.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">OCR-строки и их координаты</text>
+<rect x="1260" y="260" width="540" height="400" rx="34" ry="34" fill="#FFF5F7" stroke="#E11D48" stroke-width="6" />
+<text x="1530.0" y="381.0" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">3. Формирование</text>
+<text x="1530.0" y="422.0" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">LayoutBlock</text>
+<text x="1530.0" y="463.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">нормализация типов блоков</text>
+<text x="1530.0" y="498.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">привязка OCR-строк к bbox</text>
+<text x="1530.0" y="533.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">заполнение text, confidence</text>
+<text x="1530.0" y="568.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">и reading_order</text>
+<rect x="1920" y="260" width="520" height="400" rx="34" ry="34" fill="#F4F8FF" stroke="#4F46E5" stroke-width="6" />
+<text x="2180.0" y="401.5" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">4. Постобработка блоков</text>
+<text x="2180.0" y="442.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">удаление мелких областей</text>
+<text x="2180.0" y="477.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">определение page_number</text>
+<text x="2180.0" y="512.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">слияние соседних текстовых блоков</text>
+<text x="2180.0" y="547.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">сортировка и перенумерация</text>
+<rect x="2560" y="260" width="520" height="400" rx="34" ry="34" fill="#F4F8FF" stroke="#4F46E5" stroke-width="6" />
+<text x="2820.0" y="419.0" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">5. Сохранение артефактов</text>
+<text x="2820.0" y="460.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">строится PNG-визуализация</text>
+<text x="2820.0" y="495.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">результат сохраняется в JSON</text>
+<text x="2820.0" y="530.0" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">визуализация кладётся в cache</text>
+<rect x="2560" y="720" width="520" height="190" rx="34" ry="34" fill="#EEFDF4" stroke="#16A34A" stroke-width="6" />
+<text x="2820.0" y="756.5" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">6. Выход модуля</text>
+<text x="2820.0" y="797.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">LayoutAnalysisResponse:</text>
+<text x="2820.0" y="832.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">analysis_id, blocks,</text>
+<text x="2820.0" y="867.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">visualization_url,</text>
+<text x="2820.0" y="902.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">result_json_path</text>
+<rect x="1310" y="740" width="440" height="180" rx="34" ry="34" fill="#FFF5F7" stroke="#E11D48" stroke-width="5" />
+<text x="1530.0" y="771.5" font-size="32" font-weight="700" text-anchor="middle" fill="#1E293B" font-family="Arial">3а. Для formula</text>
+<text x="1530.0" y="812.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">вырезка области</text>
+<text x="1530.0" y="847.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">RecognitionPredictor</text>
+<text x="1530.0" y="882.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">(block_without_boxes)</text>
+<text x="1530.0" y="917.5" font-size="25" text-anchor="middle" fill="#1E293B" font-family="Arial">получение LaTeX</text>
+<polyline points="520,460 640,460" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<polygon points="640,460 616,446 616,474" fill="#64748B" />
+<polyline points="1140,460 1260,460" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<polygon points="1260,460 1236,446 1236,474" fill="#64748B" />
+<polyline points="1800,460 1920,460" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<polygon points="1920,460 1896,446 1896,474" fill="#64748B" />
+<polyline points="2440,460 2560,460" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<polygon points="2560,460 2536,446 2536,474" fill="#64748B" />
+<polyline points="2820,660 2820,720" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<polygon points="2820,720 2806,696 2834,696" fill="#64748B" />
+<polyline points="1530,660 1530,740" fill="none" stroke="#64748B" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="18 12" />
+<polygon points="1530,740 1516,716 1544,716" fill="#64748B" />
+</svg>
