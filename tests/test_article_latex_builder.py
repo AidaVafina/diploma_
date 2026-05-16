@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from app.schemas import ArticleContent, LatexMetadata, PageContent, ProcessedBlock
+from app.schemas import (
+    ArticleContent,
+    ArticleMetadata,
+    LatexMetadata,
+    PageContent,
+    ProcessedBlock,
+)
 from app.services.article_latex_builder import (
     build_article_latex_document,
     build_article_latex_preview,
@@ -213,6 +219,21 @@ class ArticleLatexBuilderTests(unittest.TestCase):
         self.assertNotIn("Об одном уравнении", body_after_maketitle)
         self.assertNotIn("Д. С. Синцов", body_after_maketitle)
         self.assertIn("Первый абзац статьи.", body_after_maketitle)
+
+    def test_uses_article_metadata_for_title_and_author(self) -> None:
+        article = ArticleContent(
+            article_id="article_from_metadata",
+            article_text="Первый абзац статьи.",
+            article_metadata=ArticleMetadata(
+                title="Название из MetadataExtractor",
+                authors=["И. И. Исследователь"],
+            ),
+        )
+
+        result = build_article_latex_document(article)
+
+        self.assertIn("\\title{Название из MetadataExtractor}", result.latex_document)
+        self.assertIn("\\author{И. И. Исследователь}", result.latex_document)
 
     def test_table_and_image_placeholders_are_comments(self) -> None:
         article = ArticleContent(

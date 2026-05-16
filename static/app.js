@@ -1,5 +1,10 @@
 const form = document.getElementById("upload-form");
 const fileInput = document.getElementById("pdf-file");
+const processingModeSelect = document.getElementById("processing-mode");
+const selectedFileNameNode = document.getElementById("selected-file-name");
+const processingModeDescriptionNode = document.getElementById("processing-mode-description");
+const processingModeTitleNode = document.getElementById("processing-mode-title");
+const processingModeNoteNode = document.getElementById("processing-mode-note");
 const processButton = document.getElementById("process-button");
 const statusNode = document.getElementById("status");
 const processingIndicatorNode = document.getElementById("processing-indicator");
@@ -12,6 +17,63 @@ const PDF_FORMULA_RENDER_SCALE = 2;
 const PDF_FORMULA_X_PADDING = 4;
 const PDF_FORMULA_Y_PADDING = 3;
 const PDF_FORMULA_RENDER_CACHE = new Map();
+const PROCESSING_MODE_LABELS = {
+  full: "Полная обработка",
+  no_preprocessing: "Без предобработки",
+  text_only: "Только текст",
+};
+const PROCESSING_MODE_META = {
+  full: {
+    description:
+      "Максимально точный режим: рендер, OCR-предобработка, layout-анализ, текстовые блоки и формулы.",
+    note: "Подходит для сложных страниц, сканов среднего качества и документов с формулами.",
+  },
+  no_preprocessing: {
+    description:
+      "Быстрый режим для качественных PDF и чистых сканов: layout и распознавание сохраняются, но предобработка пропускается.",
+    note: "Лучший выбор, когда документ уже чёткий и нужно сократить время без потери структуры.",
+  },
+  text_only: {
+    description:
+      "Минимальный по времени сценарий: извлекается только текст, а layout, формулы и OCR-предобработка отключаются.",
+    note: "Подходит для текстовых документов, когда важна скорость, а структурный разбор не нужен.",
+  },
+};
+
+function getProcessingModeLabel(mode) {
+  return PROCESSING_MODE_LABELS[mode] || PROCESSING_MODE_LABELS.full;
+}
+
+function getSelectedProcessingMode() {
+  return processingModeSelect?.value || "full";
+}
+
+function updateSelectedFileName() {
+  if (!selectedFileNameNode) {
+    return;
+  }
+
+  const selectedName = fileInput.files?.[0]?.name?.trim();
+  selectedFileNameNode.textContent = selectedName || "Файл ещё не выбран";
+}
+
+function updateProcessingModePresentation() {
+  const mode = getSelectedProcessingMode();
+  const modeMeta = PROCESSING_MODE_META[mode] || PROCESSING_MODE_META.full;
+  const modeLabel = getProcessingModeLabel(mode);
+
+  if (processingModeDescriptionNode) {
+    processingModeDescriptionNode.textContent = modeMeta.description;
+  }
+
+  if (processingModeTitleNode) {
+    processingModeTitleNode.textContent = modeLabel;
+  }
+
+  if (processingModeNoteNode) {
+    processingModeNoteNode.textContent = modeMeta.note;
+  }
+}
 
 function setStatus(message, isError = false) {
   statusNode.textContent = message;
@@ -496,6 +558,57 @@ async function downloadReadablePdf(payloadSource, triggerButton, successMessage)
   } catch (error) {
     console.error(error);
     setStatus(error.message || "Не удалось сформировать PDF.", true);
+  } finally {
+    if (triggerButton) {
+      triggerButton.disabled = false;
+      triggerButton.textContent = initialLabel;
+    }
+  }
+}
+
+async function downloadCollectionArchive(payloadSource, triggerButton, successMessage) {
+  const initialLabel = triggerButton?.textContent || "";
+
+  if (triggerButton) {
+    triggerButton.disabled = true;
+    triggerButton.textContent = "Собираем архив...";
+  }
+
+  try {
+    setStatus("Подготавливаем статьи для экспорта коллекции...");
+    const payload =
+      typeof payloadSource === "function" ? await payloadSource() : await payloadSource;
+
+    setStatus("Формируем ZIP-архив коллекции...");
+    const response = await fetch("/api/export-collection", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response));
+    }
+
+    const blob = await response.blob();
+    const filename =
+      extractFilenameFromDisposition(response.headers.get("Content-Disposition")) ||
+      payload.filename ||
+      "collection-export.zip";
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+    setStatus(successMessage || "Архив коллекции сформирован.");
+  } catch (error) {
+    console.error(error);
+    setStatus(error.message || "Не удалось сформировать архив коллекции.", true);
   } finally {
     if (triggerButton) {
       triggerButton.disabled = false;
@@ -1279,7 +1392,34 @@ async function buildArticleReadablePdfPayload(article, pages) {
   };
 }
 
-function createReadableExportSection(pages) {
+async function buildCollectionExportPayload(articleSegmentation, pages, processingMode = "full") {
+  const sourceStem = sanitizeFilenamePart(getSourceDocumentStem(), "document");
+  const articles = [];
+
+  for (const article of articleSegmentation?.articles || []) {
+    articles.push({
+      article_id: article.article_id,
+      page_numbers: article.page_numbers || [],
+      title: article.title_preview || "",
+      author: article.author_preview || "",
+      article_text: collectArticleText(article, pages),
+      article_latex_preview: article.article_latex_preview || "",
+      article_latex_document: article.article_latex_document || "",
+      article_metadata: article.article_metadata || null,
+      readable_pdf: await buildArticleReadablePdfPayload(article, pages),
+    });
+  }
+
+  return {
+    title: sourceStem,
+    filename: `${sourceStem}-collection.zip`,
+    source_document_name: getSourceDocumentName(),
+    processing_mode: processingMode,
+    articles,
+  };
+}
+
+function createReadableExportSection(pages, articleSegmentation, processingMode = "full") {
   const section = document.createElement("section");
   section.className = "readable-export";
 
@@ -1297,6 +1437,9 @@ function createReadableExportSection(pages) {
     "Скачайте объединённый PDF с тем читаемым представлением документа, которое показано в интерфейсе.";
   titleWrap.appendChild(description);
 
+  const actions = document.createElement("div");
+  actions.className = "readable-export__actions";
+
   const exportButton = createSecondaryButton("Скачать PDF документа", async () => {
     downloadReadablePdf(
       () => buildDocumentReadablePdfPayload(pages),
@@ -1305,8 +1448,24 @@ function createReadableExportSection(pages) {
     );
   });
 
+  actions.appendChild(exportButton);
+
+  if (articleSegmentation?.articles?.length) {
+    const exportCollectionButton = createSecondaryButton(
+      "Скачать коллекцию",
+      async () => {
+        downloadCollectionArchive(
+          () => buildCollectionExportPayload(articleSegmentation, pages, processingMode),
+          exportCollectionButton,
+          "Архив электронной коллекции сформирован."
+        );
+      }
+    );
+    actions.appendChild(exportCollectionButton);
+  }
+
   header.appendChild(titleWrap);
-  header.appendChild(exportButton);
+  header.appendChild(actions);
   section.appendChild(header);
   return section;
 }
@@ -1395,6 +1554,7 @@ function createArticleSegmentationSection(segmentation, pages) {
   list.className = "article-list";
 
   (segmentation.articles || []).forEach((article) => {
+    const articleMetadata = article.article_metadata || null;
     const details = document.createElement("details");
     details.className = "article-item";
 
@@ -1456,6 +1616,23 @@ function createArticleSegmentationSection(segmentation, pages) {
     meta.appendChild(createBlockDetailRow("Pages", (article.page_numbers || []).join(", ") || "—"));
     meta.appendChild(createBlockDetailRow("Title", article.title_preview || "—"));
     meta.appendChild(createBlockDetailRow("Author", article.author_preview || "—"));
+    if (articleMetadata?.language) {
+      meta.appendChild(createBlockDetailRow("Language", articleMetadata.language));
+    }
+    if (articleMetadata?.year) {
+      meta.appendChild(createBlockDetailRow("Year", String(articleMetadata.year)));
+    }
+    if (articleMetadata?.keywords?.length) {
+      meta.appendChild(createBlockDetailRow("Keywords", articleMetadata.keywords.join(", ")));
+    }
+    if (articleMetadata?.abstract) {
+      meta.appendChild(createBlockDetailRow("Abstract", summarizeText(articleMetadata.abstract, 220)));
+    }
+    if (articleMetadata?.references?.length) {
+      meta.appendChild(
+        createBlockDetailRow("References", String(articleMetadata.references.length))
+      );
+    }
     meta.appendChild(createBlockDetailRow("Start", String(article.start_page)));
     meta.appendChild(createBlockDetailRow("End", String(article.end_page)));
     body.appendChild(meta);
@@ -1470,7 +1647,8 @@ function createArticleSegmentationSection(segmentation, pages) {
   return section;
 }
 
-function createPageCard(page) {
+function createPageCard(page, documentMode = "full") {
+  const processingMode = page.processing_mode || documentMode || "full";
   const card = document.createElement("article");
   card.className = "page-card page-card--rich";
 
@@ -1486,6 +1664,7 @@ function createPageCard(page) {
 
   const meta = document.createElement("div");
   meta.className = "page-card__meta";
+  meta.appendChild(createMetaChip("Режим", getProcessingModeLabel(processingMode)));
   meta.appendChild(createMetaChip("PDF", page.has_text ? "text" : "ocr"));
 
   if (page.layout_analysis) {
@@ -1518,25 +1697,37 @@ function createPageCard(page) {
 
   const previews = document.createElement("div");
   previews.className = "page-card__previews";
+  const renderPlaceholder =
+    processingMode === "text_only" && !page.page_image_data_url
+      ? "Рендер страницы был пропущен, потому что встроенного текста оказалось достаточно."
+      : "Рендер страницы недоступен.";
+  const ocrPreviewPlaceholder =
+    processingMode === "full"
+      ? "OCR-предобработка для этой страницы не потребовалась."
+      : "Предобработка отключена для выбранного режима.";
+  const layoutPlaceholder =
+    processingMode === "text_only"
+      ? 'Layout-анализ пропущен в режиме "Только текст".'
+      : page.layout_error || "Layout-анализ не вернул визуализацию.";
   previews.appendChild(
     createPreviewPanel(
       "Рендер страницы",
       page.page_image_data_url,
-      "Рендер страницы недоступен."
+      renderPlaceholder
     )
   );
   previews.appendChild(
     createPreviewPanel(
       "OCR-превью",
       page.image_data_url,
-      "OCR-предобработка для этой страницы не потребовалась."
+      ocrPreviewPlaceholder
     )
   );
   previews.appendChild(
     createPreviewPanel(
       "Layout-разметка",
       page.layout_analysis?.visualization_data_url || null,
-      page.layout_error || "Layout-анализ не вернул визуализацию."
+      layoutPlaceholder
     )
   );
 
@@ -1554,7 +1745,9 @@ function createPageCard(page) {
     errorNode.className = "page-card__error";
     errorNode.textContent = `Layout-анализ: ${page.layout_error}`;
     card.appendChild(errorNode);
-  } else if (page.layout_analysis) {
+  }
+
+  if (page.layout_analysis || page.text_block_content || page.text_block_error) {
     card.appendChild(createTextBlockProcessorSection(page));
   }
 
@@ -1563,6 +1756,9 @@ function createPageCard(page) {
 
 function renderResults(documentResult) {
   const pages = Array.isArray(documentResult) ? documentResult : documentResult.pages || [];
+  const processingMode = Array.isArray(documentResult)
+    ? "full"
+    : documentResult.processing_mode || documentResult.pages?.[0]?.processing_mode || "full";
   const articleSegmentation = Array.isArray(documentResult)
     ? null
     : documentResult.article_segmentation || null;
@@ -1593,19 +1789,19 @@ function renderResults(documentResult) {
     ? ` | Статей: ${articleSegmentation.article_count}`
     : "";
   summaryNode.textContent =
-    `Всего: ${pages.length} | С текстом: ${pagesWithText} | Для OCR: ${pagesForOcr} | ` +
+    `Режим: ${getProcessingModeLabel(processingMode)} | Всего: ${pages.length} | С текстом: ${pagesWithText} | Для OCR: ${pagesForOcr} | ` +
     `Layout OK: ${pagesWithLayout} | Layout ошибок: ${pagesWithLayoutError} | ` +
     `PageContent OK: ${pagesWithTextBlocks} | PageContent ошибок: ${pagesWithTextBlockError}` +
     articleSummary;
 
-  resultsNode.appendChild(createReadableExportSection(pages));
+  resultsNode.appendChild(createReadableExportSection(pages, articleSegmentation, processingMode));
 
   if (articleSegmentation) {
     resultsNode.appendChild(createArticleSegmentationSection(articleSegmentation, pages));
   }
 
   pages.forEach((page) => {
-    resultsNode.appendChild(createPageCard(page));
+    resultsNode.appendChild(createPageCard(page, processingMode));
   });
 }
 
@@ -1619,11 +1815,13 @@ async function handleSubmit(event) {
   }
 
   const formData = new FormData();
+  const processingMode = getSelectedProcessingMode();
   formData.append("file", file);
+  formData.append("processing_mode", processingMode);
 
   processButton.disabled = true;
-  setProcessingStage("Отправляем PDF на сервер", "active");
-  setStatus("Идёт обработка PDF...");
+  setProcessingStage(`Отправляем PDF на сервер (${getProcessingModeLabel(processingMode)})`, "active");
+  setStatus(`Идёт обработка PDF: ${getProcessingModeLabel(processingMode)}.`);
   summaryNode.textContent = "Live-progress запущен";
 
   try {
@@ -1640,7 +1838,7 @@ async function handleSubmit(event) {
     const payload = await readProcessingStream(response);
     renderResults(payload);
     setProcessingStage("Обработка завершена", "done");
-    setStatus("PDF-этап завершён. PageContent сформирован для каждой страницы, выполнено разделение на статьи.");
+    setStatus(`PDF-этап завершён: ${getProcessingModeLabel(payload.processing_mode || processingMode)}.`);
   } catch (error) {
     console.error(error);
     setProcessingStage(error.message || "Ошибка обработки", "error");
@@ -1651,4 +1849,20 @@ async function handleSubmit(event) {
   }
 }
 
+fileInput.addEventListener("change", () => {
+  updateSelectedFileName();
+
+  if (fileInput.files?.[0]?.name) {
+    setStatus(`Файл выбран: ${fileInput.files[0].name}`);
+  } else {
+    setStatus("Файл ещё не загружен.");
+  }
+});
+
+processingModeSelect?.addEventListener("change", () => {
+  updateProcessingModePresentation();
+});
+
+updateSelectedFileName();
+updateProcessingModePresentation();
 form.addEventListener("submit", handleSubmit);

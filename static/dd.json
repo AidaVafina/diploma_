@@ -1,0 +1,34 @@
+{
+  "article_id": 1,
+  "title": "Дифференциальное уравнение ...",
+  "authors": [
+    "Д. М. Синцов"
+  ],
+  "language": "ru",
+  "year": 1910,
+  "keywords": [
+    "дифференциальное уравнение",
+    "коническая форма",
+    "линейчатая форма"
+  ]
+  "references": [
+    {
+      "authors": "...",
+      "title": "...",
+      "year": 1909
+    }
+  ],
+
+  "field_sources": {
+    "title": "layout",
+    "authors": "ner+layout",
+    "year": "regex",
+    "abstract": "section_parser",
+    "keywords": "semantic_extraction"
+  },
+  "confidence": {
+    "title": 0.96,
+    "authors": 0.84,
+    "year": 0.91
+  }
+}

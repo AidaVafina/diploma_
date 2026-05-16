@@ -4,9 +4,15 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+ProcessingMode = Literal["full", "no_preprocessing", "text_only"]
+
 
 class PageProcessingResult(BaseModel):
     page_number: int = Field(..., description="Page number inside the source PDF")
+    processing_mode: ProcessingMode = Field(
+        default="full",
+        description="Selected processing pipeline for this page",
+    )
     has_text: bool = Field(..., description="Whether the page has enough embedded text")
     text: str = Field("", description="Extracted embedded text")
     page_image_data_url: str | None = Field(
@@ -165,6 +171,7 @@ class ArticlePreview(BaseModel):
     page_numbers: list[int] = Field(default_factory=list)
     title_preview: str = ""
     author_preview: str = ""
+    article_metadata: ArticleMetadata | None = None
     article_text: str = ""
     article_latex_preview: str = ""
     article_latex_document: str = ""
@@ -216,16 +223,52 @@ class LatexMetadata(BaseModel):
     documentclass: str = "article"
 
 
+class ArticleReference(BaseModel):
+    raw_text: str = ""
+    authors: list[str] = Field(default_factory=list)
+    title: str | None = None
+    year: int | None = Field(default=None, ge=1000, le=2100)
+
+
+class ArticleMetadata(BaseModel):
+    title: str | None = None
+    authors: list[str] = Field(default_factory=list)
+    language: str | None = None
+    year: int | None = Field(default=None, ge=1000, le=2100)
+    abstract: str | None = None
+    keywords: list[str] = Field(default_factory=list)
+    references: list[ArticleReference] = Field(default_factory=list)
+    needs_review: bool = False
+    field_sources: dict[str, str] = Field(default_factory=dict)
+    confidence: dict[str, float] = Field(default_factory=dict)
+
+    def primary_author(self) -> str | None:
+        for author in self.authors:
+            cleaned = author.strip()
+            if cleaned:
+                return cleaned
+        return None
+
+    def to_latex_metadata(self, documentclass: str = "article") -> LatexMetadata:
+        return LatexMetadata(
+            title=self.title,
+            author=self.primary_author(),
+            documentclass=documentclass,
+        )
+
+
 class ArticleContent(BaseModel):
     article_id: str | None = None
     page_numbers: list[int] = Field(default_factory=list)
     title: str | None = None
     author: str | None = None
     article_text: str = ""
+    normalized_text: str = ""
     structured_content: list[ProcessedBlock] = Field(default_factory=list)
     pages: list[PageContent] = Field(default_factory=list)
     blocks: list[ProcessedBlock] = Field(default_factory=list)
     metadata: LatexMetadata | None = None
+    article_metadata: ArticleMetadata | None = None
 
 
 class LatexBuildResult(BaseModel):
@@ -259,6 +302,7 @@ class ArticleLatexDocumentResult(BaseModel):
 
 
 class DocumentProcessingResult(BaseModel):
+    processing_mode: ProcessingMode = "full"
     pages: list[PageProcessingResult] = Field(default_factory=list)
     article_segmentation: ArticleSegmentationResult | None = None
 
@@ -291,3 +335,23 @@ class ReadablePdfExportRequest(BaseModel):
     subtitle: str | None = None
     filename: str | None = None
     sections: list[ReadablePdfSection] = Field(default_factory=list)
+
+
+class CollectionExportArticleRequest(BaseModel):
+    article_id: str
+    page_numbers: list[int] = Field(default_factory=list)
+    title: str = ""
+    author: str = ""
+    article_text: str = ""
+    article_latex_preview: str = ""
+    article_latex_document: str = ""
+    article_metadata: ArticleMetadata | None = None
+    readable_pdf: ReadablePdfExportRequest
+
+
+class CollectionExportRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    filename: str | None = None
+    source_document_name: str | None = None
+    processing_mode: ProcessingMode | None = None
+    articles: list[CollectionExportArticleRequest] = Field(default_factory=list)

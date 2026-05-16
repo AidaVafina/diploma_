@@ -9,10 +9,12 @@ from app.schemas import (
     ArticleBoundary,
     ArticlePreview,
     ArticleSegmentationResult,
+    LatexMetadata,
     PageContent,
     ProcessedBlock,
 )
 from app.services.article_latex_builder import build_article_latex_document
+from app.services.metadata_extractor import extract_article_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -251,13 +253,31 @@ class ArticleSegmenter:
         )
 
         article_id = f"article_{article_index:03d}"
+        article_text = self._build_article_text(article_pages)
+        article_content = ArticleContent(
+            article_id=article_id,
+            page_numbers=page_numbers,
+            title=title_preview[:240],
+            article_text=article_text,
+            normalized_text=MULTISPACE_RE.sub(" ", article_text).strip(),
+            pages=article_pages,
+        )
+        article_metadata = extract_article_metadata(article_content)
+
+        resolved_title = (article_metadata.title or title_preview or "").strip()[:240]
+        resolved_author = article_metadata.primary_author()
+
+        article_content.title = resolved_title or None
+        article_content.author = resolved_author
+        article_content.article_metadata = article_metadata
+        article_content.metadata = LatexMetadata(
+            title=resolved_title or None,
+            author=resolved_author,
+        )
+
         article_latex = build_article_latex_document(
-            ArticleContent(
-                article_id=article_id,
-                page_numbers=page_numbers,
-                title=title_preview[:240],
-                pages=article_pages,
-            )
+            article_content,
+            article_content.metadata,
         )
 
         return ArticlePreview(
@@ -265,10 +285,12 @@ class ArticleSegmenter:
             start_page=page_numbers[0] if page_numbers else article_index,
             end_page=page_numbers[-1] if page_numbers else article_index,
             page_numbers=page_numbers,
-            title_preview=title_preview[:240],
-            needs_review=start_boundary.needs_review,
+            title_preview=resolved_title,
+            author_preview=resolved_author or "",
+            article_metadata=article_metadata,
+            needs_review=start_boundary.needs_review or article_metadata.needs_review,
             boundary_confidence=start_boundary.score,
-            article_text=self._build_article_text(article_pages),
+            article_text=article_text,
             article_latex_preview=article_latex.latex_preview,
             article_latex_document=article_latex.latex_document,
             debug_info=start_boundary.debug_info,

@@ -21,8 +21,8 @@
       };
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-    <link rel="stylesheet" href="/static/styles.css?v=20260506-formula-size-tune" />
-    <script src="/static/app.js?v=20260506-formula-size-tune" defer></script>
+    <link rel="stylesheet" href="/static/styles.css?v=20260514-collection-export" />
+    <script src="/static/app.js?v=20260514-collection-export" defer></script>
   </head>
   <body>
     <main class="layout">
@@ -38,22 +38,81 @@
 
       <section class="panel">
         <form id="upload-form" class="upload-form">
-          <label class="file-picker" for="pdf-file">
-            <span class="file-picker__label">PDF-документ</span>
-            <input id="pdf-file" name="file" type="file" accept=".pdf,application/pdf" required />
-          </label>
+          <div class="upload-form__main">
+            <div class="upload-form__heading">
+              <span class="upload-form__eyebrow">Запуск обработки</span>
+              <h3>Подготовьте документ и сценарий распознавания</h3>
+              <p>
+                Выберите PDF и подходящий режим: полный конвейер, быстрый разбор без предобработки
+                или ускоренное извлечение только текста.
+              </p>
+            </div>
 
-          <button id="process-button" type="submit">Обработать</button>
+            <div class="upload-form__grid">
+              <label class="control-card control-card--file" for="pdf-file">
+                <span class="control-card__label">PDF-документ</span>
+                <span class="control-card__title">Загрузите выпуск, статью или набор страниц</span>
+                <span class="control-card__hint">
+                  Поддерживается один PDF за запуск. После загрузки документ сразу готов к обработке.
+                </span>
+
+                <span class="file-picker__surface">
+                  <span class="file-picker__button">Выбрать PDF</span>
+
+                </span>
+
+                <input
+                  id="pdf-file"
+                  class="file-picker__input"
+                  name="file"
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  required
+                />
+              </label>
+
+              <label class="control-card control-card--mode" for="processing-mode">
+                <span class="control-card__label">Режим обработки</span>
+                <span class="control-card__title">Выберите режим</span>
+
+                <span class="select-shell">
+                  <select id="processing-mode" name="processing_mode">
+                    <option value="full" selected>Полная обработка</option>
+                    <option value="no_preprocessing">Без предобработки</option>
+                    <option value="text_only">Только текст</option>
+                  </select>
+                </span>
+
+                <span id="processing-mode-description" class="control-card__hint">
+                  Максимально точный режим: рендер, OCR-предобработка, layout-анализ, текстовые блоки и формулы.
+                </span>
+
+                <span class="mode-pills" aria-hidden="true">
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <aside class="upload-form__aside" aria-label="Панель запуска">
+            <span class="upload-form__aside-label">Текущий сценарий</span>
+            <strong id="processing-mode-title" class="upload-form__aside-title">Полная обработка</strong>
+            <p id="processing-mode-note" class="upload-form__aside-text">
+              Подходит для сложных страниц, сканов среднего качества и документов с формулами.
+            </p>
+            <button id="process-button" type="submit">Обработать</button>
+          </aside>
         </form>
 
-        <p id="status" class="status">Файл ещё не загружен.</p>
-        <div id="processing-indicator" class="processing-indicator" hidden>
-          <div class="processing-indicator__track" aria-hidden="true">
-            <span></span>
+        <div class="panel__feedback">
+          <p id="status" class="status">Файл ещё не загружен.</p>
+          <div id="processing-indicator" class="processing-indicator" hidden>
+            <div class="processing-indicator__track" aria-hidden="true">
+              <span></span>
+            </div>
+            <p id="processing-stage" class="processing-indicator__stage">
+              Ожидаем запуск обработки
+            </p>
           </div>
-          <p id="processing-stage" class="processing-indicator__stage">
-            Ожидаем запуск обработки
-          </p>
         </div>
       </section>
 

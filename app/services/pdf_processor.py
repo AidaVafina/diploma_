@@ -8,7 +8,14 @@ from typing import Any
 import fitz
 
 from app.core.config import settings
-from app.schemas import DocumentProcessingResult, PageProcessingResult
+from app.schemas import (
+    DocumentProcessingResult,
+    OCRResult,
+    PageContent,
+    PageProcessingResult,
+    ProcessedBlock,
+    ProcessingMode,
+)
 from app.services.article_segmenter import segment_document_into_articles
 from app.services.formula_block_processor import process_formula_blocks
 from app.services.image_processor import (
@@ -21,15 +28,26 @@ from app.services.layout_analysis_surya import (
     LayoutAnalysisError,
     SuryaNotAvailableError,
     analyze_page_layout,
+    recognize_page_text,
 )
 from app.services.text_block_processor import (
+    PaddleOCRNotAvailableError,
+    TextBlockProcessingError,
+    build_page_content as build_presented_page_content,
+    build_results_path as build_text_results_path,
     build_routed_blocks_from_layout,
+    cache_page_content,
+    postprocess_text,
     process_text_blocks,
+    recognize_text_block,
+    save_results as save_text_results,
+    should_mark_for_review,
 )
 
 logger = logging.getLogger(__name__)
 
 WHITESPACE_RE = re.compile(r"\s+")
+LAYOUT_PROCESSING_MODES = {"full", "no_preprocessing"}
 
 
 class PDFProcessingError(RuntimeError):
@@ -57,7 +75,145 @@ def render_page(page: fitz.Page, dpi: int | None = None) -> fitz.Pixmap:
     return page.get_pixmap(matrix=matrix, alpha=False)
 
 
-def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
+def store_page_content(page_content: PageContent) -> PageContent:
+    result_path = build_text_results_path(page_content.page_content_id)
+    page_content = page_content.model_copy(update={"result_json_path": str(result_path)})
+    save_text_results(page_content, result_path)
+    cache_page_content(page_content)
+    return page_content
+
+
+def build_embedded_text_page_content(
+    extracted_text: str,
+    *,
+    page_number: int,
+) -> PageContent:
+    normalized_text = postprocess_text(extracted_text)
+    page_content = build_presented_page_content(
+        [
+            ProcessedBlock(
+                block_id=f"page_{page_number}_embedded_text",
+                type="text",
+                reading_order=1,
+                bbox=[0, 0, 1, 1],
+                route_to="text_pipeline",
+                content=normalized_text or None,
+                confidence=1.0,
+                needs_review=False,
+                crop_data_url=None,
+                crop_path=None,
+                latex=None,
+                formula_result=None,
+                formula_backend=None,
+                ocr_result=OCRResult(text=normalized_text, confidence=1.0),
+                ocr_backend="pdf_text",
+            )
+        ],
+        page_number=page_number,
+    )
+    return store_page_content(page_content)
+
+
+def has_meaningful_page_ocr_text(
+    ocr_result: OCRResult,
+    *,
+    threshold: int | None = None,
+) -> bool:
+    return has_enough_text(
+        ocr_result.text,
+        threshold=max(settings.text_block_min_length, threshold or 20),
+    )
+
+
+def select_best_text_only_result(
+    candidates: list[tuple[str, OCRResult]],
+) -> tuple[str, OCRResult]:
+    return max(
+        candidates,
+        key=lambda item: (
+            len(normalize_text(item[1].text)),
+            float(item[1].confidence or 0.0),
+        ),
+    )
+
+
+def build_text_only_page_content(
+    image_rgb: Any,
+    *,
+    extracted_text: str,
+    page_number: int,
+) -> PageContent:
+    candidates: list[tuple[str, OCRResult]] = []
+
+    try:
+        paddle_result = recognize_text_block(image_rgb)
+        candidates.append(("paddleocr", paddle_result))
+    except (PaddleOCRNotAvailableError, TextBlockProcessingError):
+        logger.warning(
+            "Whole-page PaddleOCR failed or is unavailable in text-only mode for page %s",
+            page_number,
+        )
+
+    paddle_result = candidates[0][1] if candidates else OCRResult(text="", confidence=0.0)
+    if not has_meaningful_page_ocr_text(paddle_result):
+        try:
+            surya_result = recognize_page_text(image_rgb)
+            candidates.append(("surya_page", surya_result))
+        except (SuryaNotAvailableError, LayoutAnalysisError):
+            logger.warning(
+                "Surya page OCR failed or is unavailable in text-only mode for page %s",
+                page_number,
+            )
+
+    fallback_text = postprocess_text(extracted_text)
+    if fallback_text:
+        candidates.append(("pdf_text", OCRResult(text=fallback_text, confidence=1.0)))
+
+    if candidates:
+        meaningful_candidates = [
+            item for item in candidates if has_meaningful_page_ocr_text(item[1])
+        ]
+        ocr_backend, ocr_result = select_best_text_only_result(
+            meaningful_candidates or candidates
+        )
+    else:
+        ocr_backend, ocr_result = ("none", OCRResult(text="", confidence=0.0))
+
+    processed_text = postprocess_text(ocr_result.text)
+    image_height, image_width = image_rgb.shape[:2]
+    page_content = build_presented_page_content(
+        [
+            ProcessedBlock(
+                block_id=f"page_{page_number}_full_text",
+                type="text",
+                reading_order=1,
+                bbox=[0, 0, image_width, image_height],
+                route_to="text_pipeline",
+                content=processed_text or None,
+                confidence=ocr_result.confidence,
+                needs_review=should_mark_for_review(
+                    processed_text, ocr_result.confidence
+                )
+                or ocr_backend != "paddleocr",
+                crop_data_url=None,
+                crop_path=None,
+                latex=None,
+                formula_result=None,
+                formula_backend=None,
+                ocr_result=ocr_result,
+                ocr_backend=ocr_backend,
+            )
+        ],
+        page_number=page_number,
+    )
+    return store_page_content(page_content)
+
+
+def iter_pdf_processing_events(
+    pdf_bytes: bytes,
+    *,
+    processing_mode: ProcessingMode = "full",
+) -> Iterator[ProgressEvent]:
     results: list[PageProcessingResult] = []
 
     try:
@@ -105,96 +261,132 @@ def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
             formula_block_error: str | None = None
 
             try:
-                yield {
-                    "type": "progress",
-                    "message": f"Рендерим страницу в изображение, {page_label}",
-                    "page": page_number,
-                    "total_pages": total_pages,
-                }
-                pixmap = render_page(page)
-                page_image_data_url = pixmap_to_data_url(pixmap)
-                page_image_rgb = pixmap_to_numpy_rgb(pixmap)
+                if processing_mode == "text_only" and text_is_enough:
+                    logger.info(
+                        "Page %s will use embedded PDF text in text-only mode",
+                        page_number,
+                    )
+                    yield {
+                        "type": "progress",
+                        "message": f"Используем встроенный текст без OCR, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
+                    yield {
+                        "type": "progress",
+                        "message": f"Собираем текстовое представление страницы, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
+                    text_block_content = build_embedded_text_page_content(
+                        extracted_text,
+                        page_number=page_number,
+                    )
+                else:
+                    yield {
+                        "type": "progress",
+                        "message": f"Рендерим страницу в изображение, {page_label}",
+                        "page": page_number,
+                        "total_pages": total_pages,
+                    }
+                    pixmap = render_page(page)
+                    page_image_data_url = pixmap_to_data_url(pixmap)
+                    page_image_rgb = pixmap_to_numpy_rgb(pixmap)
 
-                if not text_is_enough:
-                    logger.info("Page %s marked for OCR preparation", page_number)
-                    yield {
-                        "type": "progress",
-                        "message": f"Готовим изображение для OCR, {page_label}",
-                        "page": page_number,
-                        "total_pages": total_pages,
-                    }
-                    image_data_url = preprocess_page_image_to_data_url(pixmap)
-                try:
-                    yield {
-                        "type": "progress",
-                        "message": f"Выполняем layout-анализ и Surya OCR, {page_label}",
-                        "page": page_number,
-                        "total_pages": total_pages,
-                    }
-                    layout_analysis = analyze_page_layout(page_image_rgb)
-                except SuryaNotAvailableError as exc:
-                    logger.exception("Surya is unavailable for page %s", page_number)
-                    layout_error = str(exc)
-                    yield {
-                        "type": "progress",
-                        "message": f"Layout-анализ недоступен, {page_label}",
-                        "page": page_number,
-                        "total_pages": total_pages,
-                    }
-                except LayoutAnalysisError as exc:
-                    logger.exception("Layout analysis failed for page %s", page_number)
-                    layout_error = str(exc)
-                    yield {
-                        "type": "progress",
-                        "message": f"Ошибка layout-анализа, {page_label}",
-                        "page": page_number,
-                        "total_pages": total_pages,
-                    }
-
-                if layout_analysis is not None:
-                    try:
+                    if processing_mode == "full" and not text_is_enough:
+                        logger.info("Page %s marked for OCR preparation", page_number)
                         yield {
                             "type": "progress",
-                            "message": f"Распознаём текстовые блоки, {page_label}",
+                            "message": f"Готовим изображение для OCR, {page_label}",
                             "page": page_number,
                             "total_pages": total_pages,
                         }
-                        routed_blocks = build_routed_blocks_from_layout(
-                            layout_analysis.blocks,
-                            block_id_prefix=f"page_{page_number}",
-                        )
-                        text_block_content = process_text_blocks(
+                        image_data_url = preprocess_page_image_to_data_url(pixmap)
+
+                    if processing_mode in LAYOUT_PROCESSING_MODES:
+                        try:
+                            yield {
+                                "type": "progress",
+                                "message": f"Выполняем layout-анализ и Surya OCR, {page_label}",
+                                "page": page_number,
+                                "total_pages": total_pages,
+                            }
+                            layout_analysis = analyze_page_layout(page_image_rgb)
+                        except SuryaNotAvailableError as exc:
+                            logger.exception("Surya is unavailable for page %s", page_number)
+                            layout_error = str(exc)
+                            yield {
+                                "type": "progress",
+                                "message": f"Layout-анализ недоступен, {page_label}",
+                                "page": page_number,
+                                "total_pages": total_pages,
+                            }
+                        except LayoutAnalysisError as exc:
+                            logger.exception("Layout analysis failed for page %s", page_number)
+                            layout_error = str(exc)
+                            yield {
+                                "type": "progress",
+                                "message": f"Ошибка layout-анализа, {page_label}",
+                                "page": page_number,
+                                "total_pages": total_pages,
+                            }
+
+                        if layout_analysis is not None:
+                            try:
+                                yield {
+                                    "type": "progress",
+                                    "message": f"Распознаём текстовые блоки, {page_label}",
+                                    "page": page_number,
+                                    "total_pages": total_pages,
+                                }
+                                routed_blocks = build_routed_blocks_from_layout(
+                                    layout_analysis.blocks,
+                                    block_id_prefix=f"page_{page_number}",
+                                )
+                                text_block_content = process_text_blocks(
+                                    page_image_rgb,
+                                    routed_blocks,
+                                    page_number=page_number,
+                                )
+                                yield {
+                                    "type": "progress",
+                                    "message": f"Распознаём формулы, {page_label}",
+                                    "page": page_number,
+                                    "total_pages": total_pages,
+                                }
+                                text_block_content = process_formula_blocks(
+                                    page_image_rgb,
+                                    text_block_content.blocks,
+                                    page_number=page_number,
+                                    page_content_id=text_block_content.page_content_id,
+                                )
+                            except Exception as exc:  # pragma: no cover - fallback branch
+                                logger.exception(
+                                    "Automatic text/formula block processing failed for page %s",
+                                    page_number,
+                                )
+                                if text_block_content is None:
+                                    text_block_error = str(exc)
+                                else:
+                                    formula_block_error = str(exc)
+                                yield {
+                                    "type": "progress",
+                                    "message": f"Ошибка OCR или формул, {page_label}",
+                                    "page": page_number,
+                                    "total_pages": total_pages,
+                                }
+                    else:
+                        yield {
+                            "type": "progress",
+                            "message": f"Извлекаем только текст без layout и предобработки, {page_label}",
+                            "page": page_number,
+                            "total_pages": total_pages,
+                        }
+                        text_block_content = build_text_only_page_content(
                             page_image_rgb,
-                            routed_blocks,
+                            extracted_text=extracted_text,
                             page_number=page_number,
                         )
-                        yield {
-                            "type": "progress",
-                            "message": f"Распознаём формулы, {page_label}",
-                            "page": page_number,
-                            "total_pages": total_pages,
-                        }
-                        text_block_content = process_formula_blocks(
-                            page_image_rgb,
-                            text_block_content.blocks,
-                            page_number=page_number,
-                            page_content_id=text_block_content.page_content_id,
-                        )
-                    except Exception as exc:  # pragma: no cover - fallback branch
-                        logger.exception(
-                            "Automatic text/formula block processing failed for page %s",
-                            page_number,
-                        )
-                        if text_block_content is None:
-                            text_block_error = str(exc)
-                        else:
-                            formula_block_error = str(exc)
-                        yield {
-                            "type": "progress",
-                            "message": f"Ошибка OCR или формул, {page_label}",
-                            "page": page_number,
-                            "total_pages": total_pages,
-                        }
             except PDFProcessingError:
                 raise
             except ImageProcessingError as exc:
@@ -210,6 +402,7 @@ def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
             results.append(
                 PageProcessingResult(
                     page_number=page_number,
+                    processing_mode=processing_mode,
                     has_text=text_is_enough,
                     text=extracted_text,
                     page_image_data_url=page_image_data_url,
@@ -227,7 +420,7 @@ def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
     processed_page_contents = [
         page.text_block_content for page in results if page.text_block_content is not None
     ]
-    if processed_page_contents:
+    if processed_page_contents and processing_mode != "text_only":
         try:
             yield {
                 "type": "progress",
@@ -243,6 +436,7 @@ def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
 
     logger.info("Finished processing PDF document")
     result = DocumentProcessingResult(
+        processing_mode=processing_mode,
         pages=results,
         article_segmentation=article_segmentation,
     )
@@ -253,9 +447,16 @@ def iter_pdf_processing_events(pdf_bytes: bytes) -> Iterator[ProgressEvent]:
     }
 
 
-def process_pdf_document(pdf_bytes: bytes) -> DocumentProcessingResult:
+def process_pdf_document(
+    pdf_bytes: bytes,
+    *,
+    processing_mode: ProcessingMode = "full",
+) -> DocumentProcessingResult:
     result: DocumentProcessingResult | None = None
-    for event in iter_pdf_processing_events(pdf_bytes):
+    for event in iter_pdf_processing_events(
+        pdf_bytes,
+        processing_mode=processing_mode,
+    ):
         if event.get("type") == "result":
             result = DocumentProcessingResult.model_validate(event["data"])
 

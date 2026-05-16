@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.schemas import (
     ArticleContent,
     ArticleLatexDocumentResult,
+    CollectionExportRequest,
     ArticleSegmentationRequest,
     ArticleSegmentationResult,
     Block,
@@ -21,11 +22,17 @@ from app.schemas import (
     LayoutAnalysisResponse,
     PageContent,
     PageTextResponse,
+    ProcessingMode,
     ReadablePdfExportRequest,
     TextPostprocessRequest,
     TextPostprocessResponse,
 )
 from app.services.article_segmenter import segment_document_into_articles
+from app.services.collection_exporter import (
+    CollectionExportError,
+    export_collection_archive,
+    resolve_collection_archive_filename,
+)
 from app.services.formula_block_processor import (
     FormulaBlockProcessingError,
     FormulaCropNotFoundError,
@@ -139,11 +146,15 @@ async def index() -> HTMLResponse:
     response_model=DocumentProcessingResult,
     status_code=status.HTTP_200_OK,
 )
-async def process_pdf(file: UploadFile = File(...)) -> DocumentProcessingResult:
+async def process_pdf(
+    file: UploadFile = File(...),
+    processing_mode: ProcessingMode = Form("full"),
+) -> DocumentProcessingResult:
     logger.info(
-        "Received file upload: name=%s, content_type=%s",
+        "Received file upload: name=%s, content_type=%s, mode=%s",
         file.filename,
         file.content_type,
+        processing_mode,
     )
 
     if not file.filename:
@@ -164,7 +175,7 @@ async def process_pdf(file: UploadFile = File(...)) -> DocumentProcessingResult:
     pdf_bytes = await read_uploaded_pdf(file)
 
     try:
-        return process_pdf_document(pdf_bytes)
+        return process_pdf_document(pdf_bytes, processing_mode=processing_mode)
     except InvalidPDFError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -179,11 +190,15 @@ async def process_pdf(file: UploadFile = File(...)) -> DocumentProcessingResult:
 
 
 @router.post("/api/process-pdf-stream", status_code=status.HTTP_200_OK)
-async def process_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
+async def process_pdf_stream(
+    file: UploadFile = File(...),
+    processing_mode: ProcessingMode = Form("full"),
+) -> StreamingResponse:
     logger.info(
-        "Received streaming file upload: name=%s, content_type=%s",
+        "Received streaming file upload: name=%s, content_type=%s, mode=%s",
         file.filename,
         file.content_type,
+        processing_mode,
     )
 
     if not file.filename:
@@ -213,7 +228,10 @@ async def process_pdf_stream(file: UploadFile = File(...)) -> StreamingResponse:
         ) + "\n"
 
         try:
-            for event in iter_pdf_processing_events(pdf_bytes):
+            for event in iter_pdf_processing_events(
+                pdf_bytes,
+                processing_mode=processing_mode,
+            ):
                 yield json.dumps(event, ensure_ascii=False) + "\n"
         except InvalidPDFError as exc:
             yield json.dumps(
@@ -259,6 +277,35 @@ async def export_readable_pdf_endpoint(payload: ReadablePdfExportRequest) -> Res
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}"; '
+                f"filename*=UTF-8''{encoded_filename}"
+            ),
+        },
+    )
+
+
+@router.post("/api/export-collection", status_code=status.HTTP_200_OK)
+async def export_collection_endpoint(payload: CollectionExportRequest) -> Response:
+    try:
+        archive_bytes = export_collection_archive(payload)
+    except CollectionExportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    filename = resolve_collection_archive_filename(payload.filename, payload.title)
+    encoded_filename = quote(filename)
+    ascii_fallback = filename.encode("ascii", "ignore").decode("ascii").strip()
+    if not ascii_fallback:
+        ascii_fallback = "collection-export.zip"
+
+    return Response(
+        content=archive_bytes,
+        media_type="application/zip",
         headers={
             "Cache-Control": "no-store",
             "Content-Disposition": (

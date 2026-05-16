@@ -300,9 +300,20 @@ def _resolve_article_metadata(
     article_content: ArticleContent,
     metadata: LatexMetadata | None,
 ) -> LatexMetadata:
-    resolved = metadata or article_content.metadata or LatexMetadata()
-    title = resolved.title or article_content.title
-    author = resolved.author or article_content.author
+    extracted_metadata = (
+        article_content.article_metadata.to_latex_metadata()
+        if article_content.article_metadata
+        else None
+    )
+    resolved = metadata or article_content.metadata or extracted_metadata or LatexMetadata()
+    title = resolved.title or article_content.title or (
+        article_content.article_metadata.title if article_content.article_metadata else None
+    )
+    author = resolved.author or article_content.author or (
+        article_content.article_metadata.primary_author()
+        if article_content.article_metadata
+        else None
+    )
     return resolved.model_copy(
         update={
             "title": title,
@@ -434,7 +445,7 @@ def _extract_article_head(
     metadata: LatexMetadata | None,
 ) -> _ArticleHead:
     blocks = _ordered_article_blocks(article_content)
-    incoming_metadata = metadata or article_content.metadata or LatexMetadata()
+    incoming_metadata = _resolve_article_metadata(article_content, metadata)
 
     title_block_index, title_block = _find_first_title_block(blocks)
     title_block_text = _block_text(title_block) if title_block else ""

@@ -18,7 +18,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFile
 
-from app.schemas import LayoutAnalysisResponse, LayoutBlock
+from app.schemas import LayoutAnalysisResponse, LayoutBlock, OCRResult
 
 logger = logging.getLogger(__name__)
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -358,6 +358,43 @@ def extract_latex_text(prediction: Any) -> str | None:
 
     text = str(get_value(prediction, "text", default="") or "").strip()
     return text or None
+
+
+def recognize_page_text(image: np.ndarray | str | Path) -> OCRResult:
+    if isinstance(image, (str, Path)):
+        image_rgb = load_image(image)
+    else:
+        image_rgb = image
+
+    predictors = get_surya_predictors()
+    pil_image = numpy_to_pil(image_rgb)
+
+    logger.info("Running Surya OCR without layout analysis")
+    try:
+        ocr_prediction = predictors["recognition_predictor"](
+            [pil_image],
+            task_names=[predictors["task_names"].ocr_with_boxes],
+            det_predictor=predictors["detection_predictor"],
+        )[0]
+    except SuryaNotAvailableError:
+        raise
+    except Exception as exc:  # pragma: no cover - model runtime dependent
+        raise LayoutAnalysisError(
+            f"Surya не смог распознать текст страницы: {exc}"
+        ) from exc
+
+    height, width = image_rgb.shape[:2]
+    lines = extract_text_lines(ocr_prediction, width, height)
+    lines.sort(key=lambda item: (item["bbox"][1], item["bbox"][0]))
+
+    texts = [line["text"] for line in lines if line["text"]]
+    scores = [float(line["confidence"] or 0.0) for line in lines if line["text"]]
+    confidence = sum(scores) / len(scores) if scores else 0.0
+
+    return OCRResult(
+        text="\n".join(texts).strip(),
+        confidence=max(0.0, min(1.0, confidence)),
+    )
 
 
 def crop_image(image: np.ndarray, bbox: list[int], padding: int = 6) -> np.ndarray:

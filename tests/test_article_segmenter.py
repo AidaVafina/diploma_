@@ -197,6 +197,42 @@ class ArticleSegmenterTests(unittest.TestCase):
         self.assertEqual(result.articles[0].title_preview, "Первая статья")
         self.assertEqual(result.articles[1].title_preview, "Вторая статья")
 
+    def test_populates_article_metadata_and_author_preview(self) -> None:
+        pages = [
+            make_page(
+                1,
+                [
+                    make_block("p1_t1", "title", 1, [90, 120, 900, 200], "Об одном уравнении"),
+                    make_block("p1_a1", "text", 2, [90, 220, 900, 260], "Д. С. Синцов"),
+                    make_block(
+                        "p1_b1",
+                        "text",
+                        3,
+                        [90, 280, 900, 520],
+                        "Аннотация\nРассматривается уравнение.\nКлючевые слова: уравнение, геометрия",
+                    ),
+                ],
+                page_text=(
+                    "Об одном уравнении\n"
+                    "Д. С. Синцов\n"
+                    "Казань, 1910\n\n"
+                    "Аннотация\n"
+                    "Рассматривается уравнение.\n"
+                    "Ключевые слова: уравнение, геометрия"
+                ),
+            )
+        ]
+
+        result = self.segmenter.segment_document_into_articles(pages)
+
+        self.assertEqual(result.article_count, 1)
+        article = result.articles[0]
+        self.assertEqual(article.author_preview, "Д. С. Синцов")
+        self.assertIsNotNone(article.article_metadata)
+        self.assertEqual(article.article_metadata.language, "ru")
+        self.assertEqual(article.article_metadata.year, 1910)
+        self.assertEqual(article.article_metadata.keywords, ["уравнение", "геометрия"])
+
 
 if __name__ == "__main__":
     unittest.main()
